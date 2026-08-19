@@ -9,10 +9,11 @@ use ratatui::{
 
 const HELP_ITEMS: &[&str] = &[
     "[↑↓] navigate",
-    "[space] select_layout",
+    "[:] command_mode",
+    "[space] toggle_select",
     "[tab] switch_section",
-    "[s] settings",
-    "[q] quit",
+    "[:s] settings",
+    "[:q] quit",
 ];
 
 use crate::app::App;
@@ -115,6 +116,40 @@ type KeyboardRow<'a> = &'a [Key<'a>];
 fn render_keyboard(frame: &mut Frame, area: Rect, rows: &[KeyboardRow<'_>]) {
     let row_height = 4;
 
+    // Find the width of the widest keyboard row.
+    let keyboard_width = rows
+        .iter()
+        .map(|row| {
+            row.iter()
+                .map(|key| key.width() + 1)
+                .sum::<u16>()
+                .saturating_sub(1)
+        })
+        .max()
+        .unwrap_or(0);
+
+    let keyboard_height = row_height * rows.len() as u16;
+
+    // Center the entire keyboard inside the available area.
+    let centered = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Fill(1),
+            Constraint::Length(keyboard_height),
+            Constraint::Fill(1),
+        ])
+        .split(area)[1];
+
+    let centered = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Fill(1),
+            Constraint::Length(keyboard_width),
+            Constraint::Fill(1),
+        ])
+        .split(centered)[1];
+
+    // Split the centered keyboard vertically into rows.
     let vertical = Layout::default()
         .direction(Direction::Vertical)
         .constraints(
@@ -122,7 +157,7 @@ fn render_keyboard(frame: &mut Frame, area: Rect, rows: &[KeyboardRow<'_>]) {
                 .map(|_| Constraint::Length(row_height))
                 .collect::<Vec<_>>(),
         )
-        .split(area);
+        .split(centered);
 
     for (row_index, row) in rows.iter().enumerate() {
         if row_index >= vertical.len() {

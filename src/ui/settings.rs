@@ -8,9 +8,10 @@ use ratatui::{
 
 const HELP_ITEMS: &[&str] = &[
     "[↑↓] navigate",
-    "[space] select_layout",
+    "[space] toggle_select",
     "[esc] exit_settings",
-    "[q] quit",
+    "[:] command_mode",
+    "[:q] quit",
 ];
 
 use crate::app::App;

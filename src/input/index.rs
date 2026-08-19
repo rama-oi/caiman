@@ -8,11 +8,20 @@ fn open_settings(app: &mut App) {
 
 pub fn handle_index_input(app: &mut App, key: KeyCode) {
     match key {
+        KeyCode::Char(':') => {
+            app.command_mode = true;
+        }
         KeyCode::Char('q') => {
-            app.should_quit = true;
+            if app.command_mode {
+                app.should_quit = true;
+                app.command_mode = false;
+            }
         }
         KeyCode::Char('s') => {
-            open_settings(app);
+            if app.command_mode {
+                open_settings(app);
+                app.command_mode = false;
+            }
         }
         // KeyCode::Space => {}
         KeyCode::Tab => {}

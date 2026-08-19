@@ -15,12 +15,14 @@ pub enum Screen {
 pub struct App {
     pub screen: Screen,
     pub should_quit: bool,
+    pub command_mode: bool,
 }
 
 pub fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<()> {
     let mut app = App {
         screen: Screen::Index,
         should_quit: false,
+        command_mode: false,
     };
 
     loop {

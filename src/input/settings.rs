@@ -8,16 +8,24 @@ fn open_index(app: &mut App) {
 
 pub fn handle_settings_input(app: &mut App, key: KeyCode) {
     match key {
-        KeyCode::Char('q') => {
-            app.should_quit = true;
+        KeyCode::Char(':') => {
+            app.command_mode = true;
         }
         KeyCode::Esc => {
-            open_index(app);
+            if app.command_mode {
+                open_index(app);
+                app.command_mode = false;
+            }
+        }
+        KeyCode::Char('q') => {
+            if app.command_mode {
+                app.should_quit = true;
+                app.command_mode = false;
+            }
         }
         // KeyCode::Space => {}
         KeyCode::Tab => {}
         KeyCode::Down => {}
-
         KeyCode::Up => {}
         _ => {}
     }
