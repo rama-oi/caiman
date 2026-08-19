@@ -38,7 +38,7 @@ pub fn draw_settings(frame: &mut Frame, app: &mut App) {
 
     let layout_list = List::new(["● catppuccin mocha", "○ melange dark", "○ tokyo night"]).block(
         Block::bordered()
-            .title(" switch layout ")
+            .title(" settings ")
             .padding(Padding::horizontal(1)),
     );
     frame.render_widget(layout_list, horizontal[0]);
@@ -64,7 +64,7 @@ pub fn draw_settings(frame: &mut Frame, app: &mut App) {
 │ ctr ││ sup ││ alt ││                              spacebar                             ││ alt ││ ctr │
 └─────┘└─────┘└─────┘└───────────────────────────────────────────────────────────────────┘└─────┘└─────┘"#;
 
-    let keyboard_block = Block::bordered().title(" current layout ");
+    let keyboard_block = Block::bordered();
     let keyboard_inner = keyboard_block.inner(horizontal[1]);
 
     frame.render_widget(keyboard_block, horizontal[1]);
