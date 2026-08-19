@@ -2,17 +2,17 @@ use crossterm::event::KeyCode;
 
 use crate::app::App;
 
-fn open_settings(app: &mut App) {
-    app.screen = crate::app::Screen::Settings;
+fn open_index(app: &mut App) {
+    app.screen = crate::app::Screen::Index;
 }
 
-pub fn handle_index_input(app: &mut App, key: KeyCode) {
+pub fn handle_settings_input(app: &mut App, key: KeyCode) {
     match key {
         KeyCode::Char('q') => {
             app.should_quit = true;
         }
-        KeyCode::Char('s') => {
-            open_settings(app);
+        KeyCode::Esc => {
+            open_index(app);
         }
         // KeyCode::Space => {}
         KeyCode::Tab => {}

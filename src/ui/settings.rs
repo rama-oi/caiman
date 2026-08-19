@@ -9,14 +9,13 @@ use ratatui::{
 const HELP_ITEMS: &[&str] = &[
     "[↑↓] navigate",
     "[space] select_layout",
-    "[tab] switch_section",
-    "[s] settings",
+    "[esc] exit_settings",
     "[q] quit",
 ];
 
 use crate::app::App;
 
-pub fn draw_index(frame: &mut Frame, app: &mut App) {
+pub fn draw_settings(frame: &mut Frame, app: &mut App) {
     let full_area = frame.area();
 
     let help_width = full_area.width.saturating_sub(2);
@@ -37,7 +36,7 @@ pub fn draw_index(frame: &mut Frame, app: &mut App) {
         .constraints([Constraint::Length(24), Constraint::Fill(1)])
         .split(vertical[0]);
 
-    let layout_list = List::new(["● en", "○ es", "○ pt"]).block(
+    let layout_list = List::new(["● catppuccin mocha", "○ melange dark", "○ tokyo night"]).block(
         Block::bordered()
             .title(" switch layout ")
             .padding(Padding::horizontal(1)),
