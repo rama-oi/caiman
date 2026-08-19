@@ -25,6 +25,10 @@ enum Key<'a> {
         bottom_right: &'a str,
         top_right: &'a str,
     },
+    NormalFn {
+        bottom_left: &'a str,
+        top_left: &'a str,
+    },
     Wide {
         bottom_left: &'a str,
         top_left: &'a str,
@@ -34,16 +38,23 @@ enum Key<'a> {
 
 impl<'a> Key<'a> {
     fn new(
-        bottom_left: &'a str,
         top_left: &'a str,
-        bottom_right: &'a str,
+        bottom_left: &'a str,
         top_right: &'a str,
+        bottom_right: &'a str,
     ) -> Self {
         Self::Normal {
             bottom_left,
             top_left,
             bottom_right,
             top_right,
+        }
+    }
+
+    fn newFn(top_left: &'a str, bottom_left: &'a str) -> Self {
+        Self::NormalFn {
+            bottom_left,
+            top_left,
         }
     }
 
@@ -58,6 +69,7 @@ impl<'a> Key<'a> {
     fn width(&self) -> u16 {
         match self {
             Self::Normal { .. } => 6,
+            Self::NormalFn { .. } => 6,
             Self::Wide { width, .. } => *width,
         }
     }
@@ -71,9 +83,16 @@ impl<'a> Key<'a> {
                 top_right,
             } => {
                 format!(
-                    " {} {} \n {} {} ",
+                    "{} {}\n{} {}",
                     top_left, top_right, bottom_left, bottom_right
                 )
+            }
+
+            Self::NormalFn {
+                bottom_left,
+                top_left,
+            } => {
+                format!("{}\n{}", top_left, bottom_left)
             }
 
             Self::Wide {
@@ -87,7 +106,7 @@ impl<'a> Key<'a> {
 
         Paragraph::new(text)
             .alignment(Alignment::Center)
-            .block(Block::bordered())
+            .block(Block::bordered().padding(Padding::horizontal(1)))
     }
 }
 
@@ -235,25 +254,23 @@ pub fn draw_index(frame: &mut Frame, app: &mut App) {
     ];
 
     let row5 = [
-        Key::new("ctr", "ctr", "ctr", "ctr"),
-        Key::new("sup", "sup", "", ""),
-        Key::new("alt", "alt", "alt", "alt"),
+        Key::newFn("ctr", "ctr"),
+        Key::newFn("sup", "sup"),
+        Key::newFn("alt", "alt"),
         Key::wide("spacebar", "spacebar", 69),
-        Key::new("alt", "alt", "alt", "alt"),
-        Key::new("ctr", "ctr", "ctr", "ctr"),
+        Key::newFn("alt", "alt"),
+        Key::newFn("ctr", "ctr"),
     ];
 
     let rows = [&row1[..], &row2[..], &row3[..], &row4[..], &row5[..]];
 
     render_keyboard(frame, keyboard_area, &rows);
 
-    // Key preview
     let key_preview =
         List::new(["key preview"]).block(Block::bordered().padding(Padding::horizontal(1)));
 
     frame.render_widget(key_preview, vertical[1]);
 
-    // Help
     let help_text = help_lines
         .iter()
         .map(|line| format!(" {line}"))
