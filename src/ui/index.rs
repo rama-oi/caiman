@@ -5,7 +5,7 @@ use ratatui::{
     layout::{Constraint, Direction, Layout},
     style::Style,
     text::{Line, Span},
-    widgets::{Block, Borders, Cell, Padding, Paragraph, Row, Table},
+    widgets::{Block, Borders, Cell, List, Padding, Paragraph, Row, Table},
 };
 
 use crate::app::App;
@@ -16,7 +16,7 @@ pub fn draw_index(frame: &mut Frame, app: &mut App) {
     let vertical = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Fill(),
+            Constraint::Fill(1),
             Constraint::Length(3),
             Constraint::Length(3),
         ])
@@ -24,7 +24,7 @@ pub fn draw_index(frame: &mut Frame, app: &mut App) {
 
     let horizontal = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Length(20), Constraint::Fill()])
+        .constraints([Constraint::Length(20), Constraint::Fill(1)])
         .split(vertical[0]);
 
     let items = ["en", "es", "pt"];

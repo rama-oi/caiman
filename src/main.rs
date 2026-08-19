@@ -1,4 +1,6 @@
 mod app;
+mod input;
+mod ui;
 
 use std::io;
 

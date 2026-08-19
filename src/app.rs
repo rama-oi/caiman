@@ -11,7 +11,7 @@ pub enum Screen {
 }
 pub struct App {
     pub screen: Screen,
-    pub should_quit: bol,
+    pub should_quit: bool,
 }
 
 pub fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<()> {
