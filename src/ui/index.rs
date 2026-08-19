@@ -3,9 +3,7 @@ use crate::util::wrap_help_items;
 use ratatui::{
     Frame,
     layout::{Alignment, Constraint, Direction, Layout},
-    style::Style,
-    text::{Line, Span},
-    widgets::{Block, Borders, Cell, List, Padding, Paragraph, Row, Table},
+    widgets::{Block, List, Paragraph},
 };
 
 const HELP_ITEMS: &[&str] = &[
@@ -36,14 +34,11 @@ pub fn draw_index(frame: &mut Frame, app: &mut App) {
 
     let horizontal = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([
-            Constraint::Length(20),
-            Constraint::Fill(1).block(Block::bordered().title(" current layout ")),
-        ])
+        .constraints([Constraint::Length(20), Constraint::Fill(1)])
         .split(vertical[0]);
 
     let layout_list =
-        List::new(["en", "es", "pt"]).block(Block::bordered().title(" switch layout "));
+        List::new(["● en", "○ es", "○ pt"]).block(Block::bordered().title(" switch layout "));
     frame.render_widget(layout_list, horizontal[0]);
 
     let keyboard_text = r#"┌─────┐┌─────┐┌─────┐┌─────┐┌─────┐┌─────┐┌─────┐┌─────┐┌─────┐┌─────┐┌─────┐┌─────┐┌─────┐┌───────────┐
@@ -66,7 +61,31 @@ pub fn draw_index(frame: &mut Frame, app: &mut App) {
 │ ctr ││ sup ││ alt ││                              spacebar                             ││ alt ││ ctr │
 │ ctr ││ sup ││ alt ││                              spacebar                             ││ alt ││ ctr │
 └─────┘└─────┘└─────┘└───────────────────────────────────────────────────────────────────┘└─────┘└─────┘"#;
-    let keyboard_height = keyboard_text.lines().count() as u16 + 2;
+
+    let keyboard_block = Block::bordered().title(" current layout ");
+    let keyboard_inner = keyboard_block.inner(horizontal[1]);
+
+    frame.render_widget(keyboard_block, horizontal[1]);
+
+    let keyboard_height = keyboard_text.lines().count() as u16;
+
+    // Crop each line to the available width, keeping the crop centered.
+    let keyboard_text = keyboard_text
+        .lines()
+        .map(|line| {
+            let chars: Vec<char> = line.chars().collect();
+            let width = keyboard_inner.width as usize;
+
+            if chars.len() <= width {
+                line.to_string()
+            } else {
+                let start = (chars.len() - width) / 2;
+
+                chars[start..start + width].iter().collect()
+            }
+        })
+        .collect::<Vec<String>>()
+        .join("\n");
 
     let keyboard_area = Layout::default()
         .direction(Direction::Vertical)
@@ -75,9 +94,10 @@ pub fn draw_index(frame: &mut Frame, app: &mut App) {
             Constraint::Length(keyboard_height),
             Constraint::Fill(1),
         ])
-        .split(horizontal[1]);
+        .split(keyboard_inner);
 
     let keyboard = Paragraph::new(keyboard_text).alignment(Alignment::Center);
+
     frame.render_widget(keyboard, keyboard_area[1]);
 
     let key_preview = List::new(["key preview"]).block(Block::bordered());
@@ -90,6 +110,6 @@ pub fn draw_index(frame: &mut Frame, app: &mut App) {
         .collect::<Vec<_>>()
         .join("\n");
 
-    let help = { Paragraph::new(help_text) };
+    let help = Paragraph::new(help_text);
     frame.render_widget(help, vertical[2]);
 }
