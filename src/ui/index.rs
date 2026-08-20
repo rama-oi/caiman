@@ -7,7 +7,7 @@ use ratatui::{
 };
 
 use crate::app::App;
-use crate::ui::keyboard::{render_keyboard, LAYOUTS};
+use crate::ui::keyboard::render_keyboard;
 
 const HELP_ITEMS: &[&str] = &[
     "[↑↓] navigate",
@@ -36,15 +36,20 @@ pub fn draw_index(frame: &mut Frame, app: &mut App) {
 
     let horizontal = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Length(24), Constraint::Fill(1)])
+        .constraints([Constraint::Length(28), Constraint::Fill(1)])
         .split(vertical[0]);
 
-    let layout_items: Vec<String> = LAYOUTS
+    let layout_items: Vec<String> = app
+        .layouts
         .iter()
         .enumerate()
         .map(|(i, layout)| {
-            let marker = if i == app.selected_layout { "●" } else { "○" };
-            format!("{marker} {}", layout.name)
+            let marker = if i == app.selected_layout {
+                "●"
+            } else {
+                "○"
+            };
+            format!("{marker} {}", layout.id)
         })
         .collect();
 
@@ -62,7 +67,7 @@ pub fn draw_index(frame: &mut Frame, app: &mut App) {
 
     frame.render_widget(keyboard_block, horizontal[1]);
 
-    render_keyboard(frame, keyboard_area, LAYOUTS[app.selected_layout].rows);
+    render_keyboard(frame, keyboard_area, app.layouts[app.selected_layout].rows);
 
     let key_preview =
         List::new(["key preview"]).block(Block::bordered().padding(Padding::horizontal(1)));

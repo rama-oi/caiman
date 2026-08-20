@@ -7,7 +7,7 @@ use ratatui::{
 };
 
 use crate::app::App;
-use crate::ui::keyboard::{LAYOUTS, render_keyboard};
+use crate::ui::keyboard::render_keyboard;
 
 const HELP_ITEMS: &[&str] = &[
     "[↑↓] navigate",
@@ -35,7 +35,7 @@ pub fn draw_settings(frame: &mut Frame, app: &mut App) {
 
     let horizontal = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Length(24), Constraint::Fill(1)])
+        .constraints([Constraint::Length(28), Constraint::Fill(1)])
         .split(vertical[0]);
 
     let layout_list = List::new(["● catppuccin mocha", "○ melange dark", "○ tokyo night"]).block(
@@ -50,7 +50,7 @@ pub fn draw_settings(frame: &mut Frame, app: &mut App) {
 
     frame.render_widget(keyboard_block, horizontal[1]);
 
-    render_keyboard(frame, keyboard_inner, LAYOUTS[app.selected_layout].rows);
+    render_keyboard(frame, keyboard_inner, app.layouts[app.selected_layout].rows);
 
     let key_preview =
         List::new(["key preview"]).block(Block::bordered().padding(Padding::horizontal(1)));

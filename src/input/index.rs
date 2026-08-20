@@ -1,18 +1,23 @@
 use crossterm::event::KeyCode;
 
 use crate::app::App;
-use crate::ui::keyboard::LAYOUTS;
 
 fn open_settings(app: &mut App) {
     app.screen = crate::app::Screen::Settings;
 }
 
 fn select_next_layout(app: &mut App) {
-    app.selected_layout = (app.selected_layout + 1) % LAYOUTS.len();
+    if app.layouts.is_empty() {
+        return;
+    }
+    app.selected_layout = (app.selected_layout + 1) % app.layouts.len();
 }
 
 fn select_prev_layout(app: &mut App) {
-    app.selected_layout = (app.selected_layout + LAYOUTS.len() - 1) % LAYOUTS.len();
+    if app.layouts.is_empty() {
+        return;
+    }
+    app.selected_layout = (app.selected_layout + app.layouts.len() - 1) % app.layouts.len();
 }
 
 pub fn handle_index_input(app: &mut App, key: KeyCode) {

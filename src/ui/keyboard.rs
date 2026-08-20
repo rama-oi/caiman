@@ -61,7 +61,7 @@ impl<'a> Key<'a> {
         }
     }
 
-    fn render(&self, area: Rect) -> Paragraph<'a> {
+    fn render(&self, _area: Rect) -> Paragraph<'a> {
         let text = match self {
             Self::Normal {
                 bottom_left,
@@ -247,62 +247,71 @@ const EN_ROW5: [Key; 6] = [
 
 pub const EN_ROWS: [&[Key]; 5] = [&EN_ROW1, &EN_ROW2, &EN_ROW3, &EN_ROW4, &EN_ROW5];
 
-const ES_ROW3: [Key; 13] = [
-    Key::wide("caps lock", "caps lock", 13),
-    Key::new("A", "a", "A", "a"),
-    Key::new("S", "s", "S", "s"),
-    Key::new("D", "d", "D", "d"),
-    Key::new("F", "f", "F", "f"),
-    Key::new("G", "g", "G", "g"),
-    Key::new("H", "h", "H", "h"),
-    Key::new("J", "j", "J", "j"),
-    Key::new("K", "k", "K", "k"),
-    Key::new("L", "l", "L", "l"),
-    Key::new("Ñ", "ñ", "Ñ", "ñ"),
-    Key::new("¨", "´", "¨", "´"),
-    Key::wide("enter", "enter", 13),
-];
-
-pub const ES_ROWS: [&[Key]; 5] = [&EN_ROW1, &EN_ROW2, &ES_ROW3, &EN_ROW4, &EN_ROW5];
-
-const PT_ROW3: [Key; 13] = [
-    Key::wide("caps lock", "caps lock", 13),
-    Key::new("A", "a", "A", "a"),
-    Key::new("S", "s", "S", "s"),
-    Key::new("D", "d", "D", "d"),
-    Key::new("F", "f", "F", "f"),
-    Key::new("G", "g", "G", "g"),
-    Key::new("H", "h", "H", "h"),
-    Key::new("J", "j", "J", "j"),
-    Key::new("K", "k", "K", "k"),
-    Key::new("L", "l", "L", "l"),
-    Key::new("Ç", "ç", "Ç", "ç"),
-    Key::new("^", "~", "^", "~"),
-    Key::wide("enter", "enter", 13),
-];
-
-pub const PT_ROWS: [&[Key]; 5] = [&EN_ROW1, &EN_ROW2, &PT_ROW3, &EN_ROW4, &EN_ROW5];
-
 pub struct LayoutInfo {
-    pub id: &'static str,
-    pub name: &'static str,
+    pub id: String,
+    pub name: String,
     pub rows: &'static [&'static [Key<'static>]],
 }
 
-pub const LAYOUTS: [LayoutInfo; 3] = [
-    LayoutInfo {
-        id: "en",
-        name: "English (US)",
-        rows: &EN_ROWS,
-    },
-    LayoutInfo {
-        id: "es",
-        name: "Español (ES)",
-        rows: &ES_ROWS,
-    },
-    LayoutInfo {
-        id: "pt",
-        name: "Português (BR)",
-        rows: &PT_ROWS,
-    },
-];
+pub fn discover_layouts() -> Vec<LayoutInfo> {
+    match get_layouts() {
+        Ok(layouts) => {
+            println!("{} layouts", layouts.len());
+
+            layouts
+                .into_iter()
+                .map(|layout| {
+                    let id = if layout.variant.is_empty() {
+                        format!("{}_{}", layout.layout, layout.brief)
+                    } else {
+                        format!("{}_{}_{}", layout.layout, layout.brief, layout.variant)
+                    };
+
+                    LayoutInfo {
+                        id: id,
+                        name: layout.description,
+                        rows: &EN_ROWS,
+                    }
+                })
+                .collect()
+        }
+
+        Err(err) => {
+            eprintln!("Failed to get layouts: {err}");
+
+            vec![LayoutInfo {
+                id: "us".to_string(),
+                name: "English (US)".to_string(),
+                rows: &EN_ROWS,
+            }]
+        }
+    }
+}
+
+use serde::Deserialize;
+use std::process::Command;
+
+#[derive(Debug, Deserialize)]
+struct XkbData {
+    layouts: Vec<XkbLayout>,
+}
+
+#[derive(Debug, Deserialize)]
+struct XkbLayout {
+    layout: String,
+    variant: String,
+    brief: String,
+    description: String,
+}
+
+fn get_layouts() -> Result<Vec<XkbLayout>, Box<dyn std::error::Error>> {
+    let output = Command::new("xkbcli").arg("list").output()?;
+
+    if !output.status.success() {
+        return Err(format!("xkbcli failed: {}", String::from_utf8_lossy(&output.stderr)).into());
+    }
+
+    let data: XkbData = serde_yaml::from_slice(&output.stdout)?;
+
+    Ok(data.layouts)
+}

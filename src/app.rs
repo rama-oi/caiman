@@ -3,6 +3,7 @@ use std::io;
 use crate::input::index::handle_index_input;
 use crate::input::settings::handle_settings_input;
 use crate::ui::index::draw_index;
+use crate::ui::keyboard::{discover_layouts, LayoutInfo};
 use crate::ui::settings::draw_settings;
 
 use crossterm::event::{self, Event};
@@ -17,6 +18,7 @@ pub struct App {
     pub should_quit: bool,
     pub command_mode: bool,
     pub selected_layout: usize,
+    pub layouts: Vec<LayoutInfo>,
 }
 
 pub fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<()> {
@@ -25,6 +27,7 @@ pub fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<
         should_quit: false,
         command_mode: false,
         selected_layout: 0,
+        layouts: discover_layouts(),
     };
 
     loop {
