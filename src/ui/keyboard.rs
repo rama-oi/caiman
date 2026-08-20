@@ -358,12 +358,17 @@ fn get_layouts() -> Result<Vec<XkbLayout>, Box<dyn std::error::Error>> {
 pub fn load_layout(layout: &str, variant: &str) -> Result<xkb::Keymap, Box<dyn std::error::Error>> {
     let context = xkb::Context::new(xkb::CONTEXT_NO_FLAGS);
 
+    let rules = "evdev";
+    let model = "pc105";
+    let options: Option<String> = None;
+
     let keymap = xkb::Keymap::new_from_names(
         &context,
-        "pc105",
+        rules,
+        model,
         layout,
         variant,
-        None,
+        options,
         xkb::KEYMAP_COMPILE_NO_FLAGS,
     )
     .ok_or("failed to compile XKB keymap")?;
