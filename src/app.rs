@@ -6,7 +6,7 @@ use crate::ui::index::draw_index;
 use crate::ui::settings::draw_settings;
 
 use crossterm::event::{self, Event};
-use ratatui::{Terminal, backend::CrosstermBackend, style::Style, widgets::Block};
+use ratatui::{Terminal, backend::CrosstermBackend};
 
 pub enum Screen {
     Index,
@@ -16,6 +16,7 @@ pub struct App {
     pub screen: Screen,
     pub should_quit: bool,
     pub command_mode: bool,
+    pub selected_layout: usize,
 }
 
 pub fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<()> {
@@ -23,6 +24,7 @@ pub fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<
         screen: Screen::Index,
         should_quit: false,
         command_mode: false,
+        selected_layout: 0,
     };
 
     loop {
