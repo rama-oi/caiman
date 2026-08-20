@@ -4,6 +4,10 @@ use ratatui::{
     widgets::{Block, Padding, Paragraph},
 };
 
+use serde::Deserialize;
+use std::process::Command;
+use xkbcommon::xkb;
+
 #[derive(Clone, Copy)]
 pub enum Key<'a> {
     Normal {
@@ -171,6 +175,10 @@ pub fn render_keyboard(frame: &mut Frame, area: Rect, rows: &[KeyboardRow<'_>]) 
     }
 }
 
+// ============================================================
+// US keyboard layout
+// ============================================================
+
 const EN_ROW1: [Key; 14] = [
     Key::new("~", "`", "~", "`"),
     Key::new("!", "1", "!", "1"),
@@ -247,12 +255,46 @@ const EN_ROW5: [Key; 6] = [
 
 pub const EN_ROWS: [&[Key]; 5] = [&EN_ROW1, &EN_ROW2, &EN_ROW3, &EN_ROW4, &EN_ROW5];
 
+// ============================================================
+// Layout information
+// ============================================================
+
 pub struct LayoutInfo {
     pub id: String,
     pub name: String,
+
+    // Actual XKB identifiers.
+    pub layout: String,
+    pub variant: String,
+
+    // Keep this for the existing Ratatui UI.
     pub rows: &'static [&'static [Key<'static>]],
 }
 
+// ============================================================
+// XKB layout discovery
+// ============================================================
+
+#[derive(Debug, Deserialize)]
+struct XkbData {
+    layouts: Vec<XkbLayout>,
+}
+
+#[derive(Debug, Deserialize)]
+struct XkbLayout {
+    layout: String,
+    variant: String,
+    brief: String,
+    description: String,
+}
+
+/// Discover the layouts installed on the system.
+///
+/// This uses `xkbcli list`.
+///
+/// At this stage we're only using it to discover the layouts.
+/// The actual keyboard symbols will be loaded separately
+/// through libxkbcommon.
 pub fn discover_layouts() -> Vec<LayoutInfo> {
     match get_layouts() {
         Ok(layouts) => {
@@ -268,8 +310,10 @@ pub fn discover_layouts() -> Vec<LayoutInfo> {
                     };
 
                     LayoutInfo {
-                        id: id,
+                        id,
                         name: layout.description,
+                        layout: layout.layout,
+                        variant: layout.variant,
                         rows: &EN_ROWS,
                     }
                 })
@@ -282,26 +326,12 @@ pub fn discover_layouts() -> Vec<LayoutInfo> {
             vec![LayoutInfo {
                 id: "us".to_string(),
                 name: "English (US)".to_string(),
+                layout: "us".to_string(),
+                variant: String::new(),
                 rows: &EN_ROWS,
             }]
         }
     }
-}
-
-use serde::Deserialize;
-use std::process::Command;
-
-#[derive(Debug, Deserialize)]
-struct XkbData {
-    layouts: Vec<XkbLayout>,
-}
-
-#[derive(Debug, Deserialize)]
-struct XkbLayout {
-    layout: String,
-    variant: String,
-    brief: String,
-    description: String,
 }
 
 fn get_layouts() -> Result<Vec<XkbLayout>, Box<dyn std::error::Error>> {
@@ -314,4 +344,29 @@ fn get_layouts() -> Result<Vec<XkbLayout>, Box<dyn std::error::Error>> {
     let data: XkbData = serde_yaml::from_slice(&output.stdout)?;
 
     Ok(data.layouts)
+}
+
+// ============================================================
+// XKB keymap loading
+// ============================================================
+
+/// Compile an XKB layout using libxkbcommon.
+///
+/// This does NOT change the system keyboard layout.
+/// It only loads the selected layout into an xkb::Keymap so
+/// that we can inspect its actual key mappings.
+pub fn load_layout(layout: &str, variant: &str) -> Result<xkb::Keymap, Box<dyn std::error::Error>> {
+    let context = xkb::Context::new(xkb::CONTEXT_NO_FLAGS);
+
+    let keymap = xkb::Keymap::new_from_names(
+        &context,
+        "pc105",
+        layout,
+        variant,
+        None,
+        xkb::KEYMAP_COMPILE_NO_FLAGS,
+    )
+    .ok_or("failed to compile XKB keymap")?;
+
+    Ok(keymap)
 }
