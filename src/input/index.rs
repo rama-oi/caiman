@@ -11,6 +11,7 @@ fn select_next_layout(app: &mut App) {
         return;
     }
     app.selected_layout = (app.selected_layout + 1) % app.layouts.len();
+    app.layout_list_state.select(Some(app.selected_layout));
 }
 
 fn select_prev_layout(app: &mut App) {
@@ -18,6 +19,7 @@ fn select_prev_layout(app: &mut App) {
         return;
     }
     app.selected_layout = (app.selected_layout + app.layouts.len() - 1) % app.layouts.len();
+    app.layout_list_state.select(Some(app.selected_layout));
 }
 
 pub fn handle_index_input(app: &mut App, key: KeyCode) {

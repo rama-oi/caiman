@@ -3,11 +3,11 @@ use std::io;
 use crate::input::index::handle_index_input;
 use crate::input::settings::handle_settings_input;
 use crate::ui::index::draw_index;
-use crate::ui::keyboard::{discover_layouts, LayoutInfo};
+use crate::ui::keyboard::{LayoutInfo, discover_layouts};
 use crate::ui::settings::draw_settings;
 
 use crossterm::event::{self, Event};
-use ratatui::{Terminal, backend::CrosstermBackend};
+use ratatui::{Terminal, backend::CrosstermBackend, widgets::ListState};
 
 pub enum Screen {
     Index,
@@ -19,6 +19,7 @@ pub struct App {
     pub command_mode: bool,
     pub selected_layout: usize,
     pub layouts: Vec<LayoutInfo>,
+    pub layout_list_state: ListState,
 }
 
 pub fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<()> {
@@ -28,6 +29,7 @@ pub fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<
         command_mode: false,
         selected_layout: 0,
         layouts: discover_layouts(),
+        layout_list_state: ListState::default().with_selected(Some(0)),
     };
 
     loop {
