@@ -1,32 +1,58 @@
 use crossterm::event::KeyCode;
 
 use crate::app::App;
+use crate::router;
+use crate::ui::settings::{ITEM_ABOUT_CAIMAN, ITEM_COUNT, ITEM_SWITCH_THEME};
 
-fn open_index(app: &mut App) {
-    app.screen = crate::app::Screen::Index;
+fn select_next_item(app: &mut App) {
+    let selected = app.settings_list_state.selected().unwrap_or(0);
+    let next = (selected + 1) % ITEM_COUNT;
+    app.settings_list_state.select(Some(next));
+}
+
+fn select_prev_item(app: &mut App) {
+    let selected = app.settings_list_state.selected().unwrap_or(0);
+    let prev = (selected + ITEM_COUNT - 1) % ITEM_COUNT;
+    app.settings_list_state.select(Some(prev));
+}
+
+/// Open whatever the currently highlighted settings row points at. Only
+/// "Switch Theme" and "About Caiman" go anywhere for now — the other rows
+/// are editable command fields, not navigation targets.
+fn open_selected_item(app: &mut App) {
+    match app.settings_list_state.selected() {
+        Some(ITEM_SWITCH_THEME) => router::go_to_themes(app),
+        Some(ITEM_ABOUT_CAIMAN) => router::go_to_about(app),
+        _ => {}
+    }
 }
 
 pub fn handle_settings_input(app: &mut App, key: KeyCode) {
+    // While a `:` command is pending, only the command keys matter, same
+    // as the index screen.
+    if app.command_mode {
+        match key {
+            KeyCode::Char('q') => {
+                app.should_quit = true;
+                app.command_mode = false;
+            }
+            KeyCode::Esc => {
+                app.command_mode = false;
+            }
+            _ => {}
+        }
+        return;
+    }
+
     match key {
         KeyCode::Char(':') => {
             app.command_mode = true;
         }
-        KeyCode::Esc => {
-            if app.command_mode {
-                open_index(app);
-                app.command_mode = false;
-            }
-        }
-        KeyCode::Char('q') => {
-            if app.command_mode {
-                app.should_quit = true;
-                app.command_mode = false;
-            }
-        }
-        // KeyCode::Space => {}
+        KeyCode::Esc => router::go_back(app),
+        KeyCode::Down => select_next_item(app),
+        KeyCode::Up => select_prev_item(app),
+        KeyCode::Enter => open_selected_item(app),
         KeyCode::Tab => {}
-        KeyCode::Down => {}
-        KeyCode::Up => {}
         _ => {}
     }
 }

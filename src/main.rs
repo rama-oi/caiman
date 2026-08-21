@@ -1,5 +1,7 @@
 mod app;
 mod input;
+mod router;
+mod theme;
 mod ui;
 mod util;
 

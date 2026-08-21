@@ -4,6 +4,7 @@ use crate::input::index::handle_index_input;
 use crate::input::settings::handle_settings_input;
 use crate::input::settings_about::handle_settings_about_input;
 use crate::input::settings_theme::handle_settings_themes_input;
+use crate::theme::{Theme, discover_themes};
 use crate::ui::index::draw_index;
 use crate::ui::keyboard::{LayoutInfo, discover_layouts};
 use crate::ui::settings::draw_settings;
@@ -28,9 +29,22 @@ pub struct App {
     pub layout_list_state: ListState,
     pub search_query: String,
     pub status_message: Option<String>,
+    pub themes: Vec<Theme>,
+    pub selected_theme: usize,
+    pub theme_list_state: ListState,
+    pub settings_list_state: ListState,
 }
 
 impl App {
+    /// The currently active theme. `themes` always has at least one entry
+    /// (see `discover_themes`), so this never has to fall back to a
+    /// hardcoded default.
+    pub fn theme(&self) -> &Theme {
+        self.themes
+            .get(self.selected_theme)
+            .unwrap_or(&self.themes[0])
+    }
+
     /// Indices into `layouts` of the layouts matching the current search
     /// query (case-insensitive substring match against id/name/xkb layout
     /// code). Returns every index when the query is empty.
@@ -66,6 +80,10 @@ pub fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<
         layout_list_state: ListState::default().with_selected(Some(0)),
         search_query: String::new(),
         status_message: None,
+        themes: discover_themes(),
+        selected_theme: 0,
+        theme_list_state: ListState::default().with_selected(Some(0)),
+        settings_list_state: ListState::default().with_selected(Some(0)),
     };
 
     loop {

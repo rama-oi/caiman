@@ -3,7 +3,8 @@ use crate::util::wrap_help_items;
 use ratatui::{
     Frame,
     layout::{Constraint, Direction, Layout},
-    widgets::{Block, List, Padding, Paragraph},
+    style::{Modifier, Style},
+    widgets::{Block, List, ListItem, Padding, Paragraph},
 };
 
 use crate::app::App;
@@ -11,14 +12,29 @@ use crate::ui::keyboard::render_keyboard;
 
 const HELP_ITEMS: &[&str] = &[
     "[↑↓] navigate",
-    "[space] toggle_select",
-    "[esc] exit_settings",
+    "[enter] open",
+    "[esc] back",
     "[:] command_mode",
     "[:q] quit",
 ];
 
+/// Index of each menu row in `settings_list_state` — shared with
+/// `input/settings.rs` so "which row is this" stays in one place.
+pub const ITEM_LIST_LAYOUTS: usize = 0;
+pub const ITEM_SWITCH_LAYOUT: usize = 1;
+pub const ITEM_SWITCH_THEME: usize = 2;
+pub const ITEM_ABOUT_CAIMAN: usize = 3;
+pub const ITEM_COUNT: usize = 4;
+
 pub fn draw_settings(frame: &mut Frame, app: &mut App) {
+    let theme = app.theme().clone();
     let full_area = frame.area();
+
+    frame.render_widget(
+        Block::default()
+            .style(Style::default().bg(theme.colors.background).fg(theme.colors.text)),
+        full_area,
+    );
 
     let help_width = full_area.width.saturating_sub(2);
     let help_lines = wrap_help_items(HELP_ITEMS, help_width);
@@ -38,20 +54,31 @@ pub fn draw_settings(frame: &mut Frame, app: &mut App) {
         .constraints([Constraint::Length(28), Constraint::Fill(1)])
         .split(vertical[0]);
 
-    let layout_list = List::new([
-        "List Layouts\nxkbcli list",
-        "Switch Layout\nswaymsg",
-        "Switch Theme\ncatppuccin-mocha",
-        "About Caiman",
-    ])
-    .block(
-        Block::bordered()
-            .title(" settings ")
-            .padding(Padding::horizontal(1)),
-    );
-    frame.render_widget(layout_list, horizontal[0]);
+    let items = [
+        "List Layouts\nxkbcli list".to_string(),
+        "Switch Layout\nswaymsg".to_string(),
+        format!("Switch Theme\n{}", theme.name),
+        "About Caiman".to_string(),
+    ];
 
-    let keyboard_block = Block::bordered();
+    let settings_list = List::new(items.into_iter().map(ListItem::new))
+        .block(
+            Block::bordered()
+                .title(" settings ")
+                .title_style(Style::default().fg(theme.colors.header))
+                .border_style(Style::default().fg(theme.colors.border))
+                .padding(Padding::horizontal(1)),
+        )
+        .highlight_style(
+            Style::default()
+                .fg(theme.colors.selection_fg)
+                .bg(theme.colors.selection_bg)
+                .add_modifier(Modifier::BOLD),
+        );
+    frame.render_stateful_widget(settings_list, horizontal[0], &mut app.settings_list_state);
+
+    let keyboard_block = Block::bordered()
+        .border_style(Style::default().fg(theme.colors.border));
     let keyboard_inner = keyboard_block.inner(horizontal[1]);
 
     frame.render_widget(keyboard_block, horizontal[1]);
@@ -60,10 +87,14 @@ pub fn draw_settings(frame: &mut Frame, app: &mut App) {
         frame,
         keyboard_inner,
         &app.layouts[app.selected_layout].rows,
+        &theme,
     );
 
-    let key_preview =
-        List::new(["key preview"]).block(Block::bordered().padding(Padding::horizontal(1)));
+    let key_preview = List::new(["key preview"]).block(
+        Block::bordered()
+            .border_style(Style::default().fg(theme.colors.border))
+            .padding(Padding::horizontal(1)),
+    );
 
     frame.render_widget(key_preview, vertical[1]);
 
@@ -73,6 +104,6 @@ pub fn draw_settings(frame: &mut Frame, app: &mut App) {
         .collect::<Vec<_>>()
         .join("\n");
 
-    let help = Paragraph::new(help_text);
+    let help = Paragraph::new(help_text).style(Style::default().fg(theme.colors.shell_light));
     frame.render_widget(help, vertical[2]);
 }

@@ -1,12 +1,15 @@
 use ratatui::{
     Frame,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
+    style::Style,
     widgets::{Block, Padding, Paragraph},
 };
 
 use serde::Deserialize;
 use std::process::Command;
 use xkbcommon::xkb;
+
+use crate::theme::Theme;
 
 #[derive(Clone)]
 pub enum Key {
@@ -60,7 +63,7 @@ impl Key {
         }
     }
 
-    fn render(&self, _area: Rect) -> Paragraph<'static> {
+    fn render(&self, _area: Rect, theme: &Theme) -> Paragraph<'static> {
         let text = match self {
             Self::Normal {
                 bottom_left,
@@ -92,11 +95,16 @@ impl Key {
 
         Paragraph::new(text)
             .alignment(Alignment::Center)
-            .block(Block::bordered().padding(Padding::horizontal(1)))
+            .style(Style::default().fg(theme.colors.text))
+            .block(
+                Block::bordered()
+                    .border_style(Style::default().fg(theme.colors.border))
+                    .padding(Padding::horizontal(1)),
+            )
     }
 }
 
-pub fn render_keyboard(frame: &mut Frame, area: Rect, rows: &[Vec<Key>]) {
+pub fn render_keyboard(frame: &mut Frame, area: Rect, rows: &[Vec<Key>], theme: &Theme) {
     let row_height = 4;
 
     let keyboard_width = rows
@@ -163,7 +171,7 @@ pub fn render_keyboard(frame: &mut Frame, area: Rect, rows: &[Vec<Key>]) {
 
             let key_area = key_areas[key_index];
 
-            frame.render_widget(key.render(key_area), key_area);
+            frame.render_widget(key.render(key_area, theme), key_area);
         }
     }
 }

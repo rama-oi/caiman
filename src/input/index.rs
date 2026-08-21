@@ -1,11 +1,8 @@
 use crossterm::event::KeyCode;
 
 use crate::app::App;
+use crate::router;
 use crate::ui::keyboard::apply_layout;
-
-fn open_settings(app: &mut App) {
-    app.screen = crate::app::Screen::Settings;
-}
 
 fn select_next_layout(app: &mut App) {
     let indices = app.filtered_layout_indices();
@@ -83,7 +80,7 @@ pub fn handle_index_input(app: &mut App, key: KeyCode) {
                 app.command_mode = false;
             }
             KeyCode::Char('s') => {
-                open_settings(app);
+                router::go_to_settings(app);
                 app.command_mode = false;
             }
             KeyCode::Esc => {
