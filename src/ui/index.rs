@@ -1,4 +1,4 @@
-use crate::util::wrap_help_items;
+use crate::util::{truncate_label, wrap_help_items};
 
 use ratatui::{
     Frame,
@@ -8,7 +8,6 @@ use ratatui::{
 
 use crate::app::App;
 use crate::ui::keyboard::render_keyboard;
-use crate::util::truncate_label;
 
 const HELP_ITEMS: &[&str] = &[
     "[↑↓] navigate",
@@ -40,7 +39,9 @@ pub fn draw_index(frame: &mut Frame, app: &mut App) {
         .constraints([Constraint::Length(28), Constraint::Fill(1)])
         .split(vertical[0]);
 
-    let label_width = horizontal[0].width.saturating_sub(6); // borders(2) + padding(2) + marker(2)
+    // Available width for the label text itself, after accounting for the
+    // block's borders (2), horizontal padding (2), and the "● " marker (2).
+    let label_width = horizontal[0].width.saturating_sub(6);
 
     let layout_items: Vec<String> = app
         .layouts
@@ -52,9 +53,7 @@ pub fn draw_index(frame: &mut Frame, app: &mut App) {
             } else {
                 "○"
             };
-            // format!("{marker} {}", layout.id)
             format!("{marker} {}", truncate_label(&layout.id, label_width))
-            // frame.render_stateful_widget(layout_list, horizontal[0], &mut app.layout_list_state);
         })
         .collect();
 
@@ -64,7 +63,6 @@ pub fn draw_index(frame: &mut Frame, app: &mut App) {
             .padding(Padding::horizontal(1)),
     );
 
-    // frame.render_widget(layout_list, horizontal[0]);
     frame.render_stateful_widget(layout_list, horizontal[0], &mut app.layout_list_state);
 
     let keyboard_block = Block::bordered().title(" current layout ");
@@ -73,7 +71,7 @@ pub fn draw_index(frame: &mut Frame, app: &mut App) {
 
     frame.render_widget(keyboard_block, horizontal[1]);
 
-    render_keyboard(frame, keyboard_area, app.layouts[app.selected_layout].rows);
+    render_keyboard(frame, keyboard_area, &app.layouts[app.selected_layout].rows);
 
     let key_preview =
         List::new(["key preview"]).block(Block::bordered().padding(Padding::horizontal(1)));

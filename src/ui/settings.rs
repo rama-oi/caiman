@@ -50,7 +50,11 @@ pub fn draw_settings(frame: &mut Frame, app: &mut App) {
 
     frame.render_widget(keyboard_block, horizontal[1]);
 
-    render_keyboard(frame, keyboard_inner, app.layouts[app.selected_layout].rows);
+    render_keyboard(
+        frame,
+        keyboard_inner,
+        &app.layouts[app.selected_layout].rows,
+    );
 
     let key_preview =
         List::new(["key preview"]).block(Block::bordered().padding(Padding::horizontal(1)));
