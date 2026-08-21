@@ -11,13 +11,12 @@ use crate::ui::keyboard::render_keyboard;
 
 const HELP_ITEMS: &[&str] = &[
     "[↑↓] navigate",
-    "[space] toggle_select",
-    "[esc] exit_settings",
+    "[esc] exit_about",
     "[:] command_mode",
     "[:q] quit",
 ];
 
-pub fn draw_settings(frame: &mut Frame, app: &mut App) {
+pub fn draw_settings_about(frame: &mut Frame, app: &mut App) {
     let full_area = frame.area();
 
     let help_width = full_area.width.saturating_sub(2);
@@ -38,15 +37,9 @@ pub fn draw_settings(frame: &mut Frame, app: &mut App) {
         .constraints([Constraint::Length(28), Constraint::Fill(1)])
         .split(vertical[0]);
 
-    let layout_list = List::new([
-        "List Layouts\nxkbcli list",
-        "Switch Layout\nswaymsg",
-        "Switch Theme\ncatppuccin-mocha",
-        "About Caiman",
-    ])
-    .block(
+    let layout_list = List::new(["Caiman v2026.1", "Pombo", "github.com/rama-oi/caiman"]).block(
         Block::bordered()
-            .title(" settings ")
+            .title(" about ")
             .padding(Padding::horizontal(1)),
     );
     frame.render_widget(layout_list, horizontal[0]);

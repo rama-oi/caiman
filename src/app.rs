@@ -2,9 +2,13 @@ use std::io;
 
 use crate::input::index::handle_index_input;
 use crate::input::settings::handle_settings_input;
+use crate::input::settings_about::handle_settings_about_input;
+use crate::input::settings_theme::handle_settings_themes_input;
 use crate::ui::index::draw_index;
 use crate::ui::keyboard::{LayoutInfo, discover_layouts};
 use crate::ui::settings::draw_settings;
+use crate::ui::settings_about::draw_settings_about;
+use crate::ui::settings_theme::draw_settings_themes;
 
 use crossterm::event::{self, Event};
 use ratatui::{Terminal, backend::CrosstermBackend, widgets::ListState};
@@ -12,6 +16,8 @@ use ratatui::{Terminal, backend::CrosstermBackend, widgets::ListState};
 pub enum Screen {
     Index,
     Settings,
+    Themes,
+    About,
 }
 pub struct App {
     pub screen: Screen,
@@ -66,12 +72,16 @@ pub fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<
         terminal.draw(|frame| match app.screen {
             Screen::Index => draw_index(frame, &mut app),
             Screen::Settings => draw_settings(frame, &mut app),
+            Screen::About => draw_settings_about(frame, &mut app),
+            Screen::Themes => draw_settings_themes(frame, &mut app),
         })?;
 
         if let Event::Key(key) = event::read()? {
             match app.screen {
                 Screen::Index => handle_index_input(&mut app, key.code),
                 Screen::Settings => handle_settings_input(&mut app, key.code),
+                Screen::About => handle_settings_about_input(&mut app, key.code),
+                Screen::Themes => handle_settings_themes_input(&mut app, key.code),
             }
         }
 

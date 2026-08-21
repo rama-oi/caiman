@@ -1,0 +1,6 @@
+list_layout = ""
+
+switch_layout = ""
+
+# Name of a theme installed in ~/.config/caiman/themes/.
+theme = "catppuccin-mocha"
