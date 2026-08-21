@@ -20,6 +20,34 @@ pub struct App {
     pub selected_layout: usize,
     pub layouts: Vec<LayoutInfo>,
     pub layout_list_state: ListState,
+    pub search_query: String,
+    pub status_message: Option<String>,
+}
+
+impl App {
+    /// Indices into `layouts` of the layouts matching the current search
+    /// query (case-insensitive substring match against id/name/xkb layout
+    /// code). Returns every index when the query is empty.
+    pub fn filtered_layout_indices(&self) -> Vec<usize> {
+        let query = self.search_query.trim().to_lowercase();
+
+        if query.is_empty() {
+            return (0..self.layouts.len()).collect();
+        }
+
+        self.layouts
+            .iter()
+            .enumerate()
+            .filter(|(_, layout)| {
+                layout
+                    .id
+                    .to_lowercase()
+                    .split('_')
+                    .any(|part| part.starts_with(&query))
+            })
+            .map(|(index, _)| index)
+            .collect()
+    }
 }
 
 pub fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<()> {
@@ -30,6 +58,8 @@ pub fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<
         selected_layout: 0,
         layouts: discover_layouts(),
         layout_list_state: ListState::default().with_selected(Some(0)),
+        search_query: String::new(),
+        status_message: None,
     };
 
     loop {

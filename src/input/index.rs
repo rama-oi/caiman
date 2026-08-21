@@ -1,48 +1,119 @@
 use crossterm::event::KeyCode;
 
 use crate::app::App;
+use crate::ui::keyboard::apply_layout;
 
 fn open_settings(app: &mut App) {
     app.screen = crate::app::Screen::Settings;
 }
 
 fn select_next_layout(app: &mut App) {
-    if app.layouts.is_empty() {
+    let indices = app.filtered_layout_indices();
+    if indices.is_empty() {
         return;
     }
-    app.selected_layout = (app.selected_layout + 1) % app.layouts.len();
-    app.layout_list_state.select(Some(app.selected_layout));
+
+    let pos = indices
+        .iter()
+        .position(|&i| i == app.selected_layout)
+        .unwrap_or(0);
+    let next_pos = (pos + 1) % indices.len();
+
+    app.selected_layout = indices[next_pos];
+    app.layout_list_state.select(Some(next_pos));
 }
 
 fn select_prev_layout(app: &mut App) {
+    let indices = app.filtered_layout_indices();
+    if indices.is_empty() {
+        return;
+    }
+
+    let pos = indices
+        .iter()
+        .position(|&i| i == app.selected_layout)
+        .unwrap_or(0);
+    let prev_pos = (pos + indices.len() - 1) % indices.len();
+
+    app.selected_layout = indices[prev_pos];
+    app.layout_list_state.select(Some(prev_pos));
+}
+
+/// Re-sync selection/list state after the search query changes: keep the
+/// currently selected layout selected if it's still visible, otherwise
+/// jump to the first visible result.
+fn refresh_filtered_selection(app: &mut App) {
+    let indices = app.filtered_layout_indices();
+
+    if indices.is_empty() {
+        app.layout_list_state.select(None);
+        return;
+    }
+
+    match indices.iter().position(|&i| i == app.selected_layout) {
+        Some(pos) => app.layout_list_state.select(Some(pos)),
+        None => {
+            app.selected_layout = indices[0];
+            app.layout_list_state.select(Some(0));
+        }
+    }
+}
+
+fn apply_selected_layout(app: &mut App) {
     if app.layouts.is_empty() {
         return;
     }
-    app.selected_layout = (app.selected_layout + app.layouts.len() - 1) % app.layouts.len();
-    app.layout_list_state.select(Some(app.selected_layout));
+
+    let layout = &app.layouts[app.selected_layout];
+
+    app.status_message = Some(match apply_layout(&layout.layout, &layout.variant) {
+        Ok(()) => format!("Switched to {}", layout.id),
+        Err(err) => format!("Failed to switch layout: {err}"),
+    });
 }
 
 pub fn handle_index_input(app: &mut App, key: KeyCode) {
+    // While a `:` command is pending, only the command keys matter — this
+    // is checked first so that letters like 'q'/'s' are free to be typed
+    // into the search box the rest of the time.
+    if app.command_mode {
+        match key {
+            KeyCode::Char('q') => {
+                app.should_quit = true;
+                app.command_mode = false;
+            }
+            KeyCode::Char('s') => {
+                open_settings(app);
+                app.command_mode = false;
+            }
+            KeyCode::Esc => {
+                app.command_mode = false;
+            }
+            _ => {}
+        }
+        return;
+    }
+
     match key {
         KeyCode::Char(':') => {
             app.command_mode = true;
         }
-        KeyCode::Char('q') => {
-            if app.command_mode {
-                app.should_quit = true;
-                app.command_mode = false;
-            }
-        }
-        KeyCode::Char('s') => {
-            if app.command_mode {
-                open_settings(app);
-                app.command_mode = false;
-            }
-        }
-        // KeyCode::Space => {}
+        KeyCode::Char(' ') => apply_selected_layout(app),
         KeyCode::Tab => {}
         KeyCode::Down => select_next_layout(app),
         KeyCode::Up => select_prev_layout(app),
+        KeyCode::Backspace => {
+            app.search_query.pop();
+            refresh_filtered_selection(app);
+        }
+        KeyCode::Esc => {
+            app.search_query.clear();
+            refresh_filtered_selection(app);
+        }
+        KeyCode::Char(c) => {
+            app.search_query.push(c);
+            refresh_filtered_selection(app);
+        }
         _ => {}
     }
 }

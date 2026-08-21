@@ -305,16 +305,26 @@ struct XkbLayout {
 /// through libxkbcommon.
 pub fn discover_layouts() -> Vec<LayoutInfo> {
     match get_layouts() {
-        Ok(layouts) => {
+        Ok(mut layouts) => {
             println!("{} layouts", layouts.len());
+
+            // Sort by language/group first, then layout, then variant.
+            // This keeps e.g. en_* layouts together.
+            layouts.sort_by(|a, b| {
+                a.brief
+                    .cmp(&b.brief)
+                    .then_with(|| a.layout.cmp(&b.layout))
+                    .then_with(|| a.variant.cmp(&b.variant))
+                    .then_with(|| a.description.cmp(&b.description))
+            });
 
             layouts
                 .into_iter()
                 .map(|layout| {
                     let id = if layout.variant.is_empty() {
-                        format!("{}_{}", layout.layout, layout.brief)
+                        format!("{}_{}", layout.brief, layout.layout)
                     } else {
-                        format!("{}_{}_{}", layout.layout, layout.brief, layout.variant)
+                        format!("{}_{}_{}", layout.brief, layout.layout, layout.variant)
                     };
 
                     let rows = load_layout(&layout.layout, &layout.variant)
@@ -374,7 +384,14 @@ fn get_layouts() -> Result<Vec<XkbLayout>, Box<dyn std::error::Error>> {
 /// It only loads the selected layout into an xkb::Keymap so
 /// that we can inspect its actual key mappings.
 pub fn load_layout(layout: &str, variant: &str) -> Result<xkb::Keymap, Box<dyn std::error::Error>> {
-    let context = xkb::Context::new(xkb::CONTEXT_NO_FLAGS);
+    let mut context = xkb::Context::new(xkb::CONTEXT_NO_FLAGS);
+
+    // libxkbcommon logs compile errors straight to stderr by default,
+    // which corrupts the TUI's screen since it bypasses ratatui's buffer
+    // entirely. We already surface failures ourselves via the returned
+    // `Result`, so raise the threshold above `Error` and let only
+    // genuinely fatal (`Critical`) messages through.
+    context.set_log_level(xkb::LogLevel::Critical);
 
     let rules = "evdev";
     let model = "pc105";
@@ -392,6 +409,70 @@ pub fn load_layout(layout: &str, variant: &str) -> Result<xkb::Keymap, Box<dyn s
     .ok_or("failed to compile XKB keymap")?;
 
     Ok(keymap)
+}
+
+// ============================================================
+// Applying a layout to the running system
+// ============================================================
+
+/// Actually switch the system's active keyboard layout.
+///
+/// This targets Sway, via its IPC (`swaymsg`), which is the mechanism
+/// Sway itself uses under the hood — there's no X11 involved, so tools
+/// like `setxkbmap` don't apply here. `type:keyboard` targets every
+/// connected keyboard rather than a single device id, since most setups
+/// only have one and it saves having to look an id up via
+/// `swaymsg -t get_inputs` first.
+///
+/// (If you switch compositors later — Hyprland, KDE, GNOME, etc. — this
+/// is the one place that needs to change; each has its own equivalent of
+/// this call.)
+pub fn apply_layout(layout: &str, variant: &str) -> Result<(), Box<dyn std::error::Error>> {
+    run_swaymsg(&["input", "type:keyboard", "xkb_layout", layout])?;
+
+    // Always set the variant explicitly (even to ""), so switching from a
+    // layout with a variant back to the plain layout clears the old one
+    // instead of leaving it stuck. When empty, we have to hand swaymsg a
+    // literal `""` token — an empty Rust string argument just disappears
+    // when swaymsg joins argv into the command text, turning
+    // `xkb_variant ""` into `xkb_variant` (missing its value entirely).
+    let variant_arg = if variant.is_empty() { "\"\"" } else { variant };
+    run_swaymsg(&["input", "type:keyboard", "xkb_variant", variant_arg])?;
+
+    Ok(())
+}
+
+fn run_swaymsg(args: &[&str]) -> Result<(), Box<dyn std::error::Error>> {
+    let output = Command::new("swaymsg").args(args).output()?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    // swaymsg exits 0 even when sway rejects the command outright; the
+    // actual reason (if any) shows up in the JSON it prints to stdout, so
+    // we have to check that too, not just the exit status.
+    let ipc_rejected =
+        stdout.contains("\"success\":false") || stdout.contains("\"success\": false");
+
+    if !output.status.success() || ipc_rejected {
+        let mut message = String::new();
+        if !stderr.trim().is_empty() {
+            message.push_str(stderr.trim());
+        }
+        if !stdout.trim().is_empty() {
+            if !message.is_empty() {
+                message.push_str(" | ");
+            }
+            message.push_str(stdout.trim());
+        }
+        if message.is_empty() {
+            message.push_str("swaymsg exited with an error but printed nothing");
+        }
+
+        return Err(format!("swaymsg failed: {message}").into());
+    }
+
+    Ok(())
 }
 
 // ============================================================
