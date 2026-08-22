@@ -31,8 +31,11 @@ pub fn draw_settings(frame: &mut Frame, app: &mut App) {
     let full_area = frame.area();
 
     frame.render_widget(
-        Block::default()
-            .style(Style::default().bg(theme.colors.background).fg(theme.colors.text)),
+        Block::default().style(
+            Style::default()
+                .bg(theme.colors.background)
+                .fg(theme.colors.text),
+        ),
         full_area,
     );
 
@@ -51,7 +54,7 @@ pub fn draw_settings(frame: &mut Frame, app: &mut App) {
 
     let horizontal = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Length(28), Constraint::Fill(1)])
+        .constraints([Constraint::Length(42), Constraint::Fill(1)])
         .split(vertical[0]);
 
     let items = [
@@ -77,8 +80,7 @@ pub fn draw_settings(frame: &mut Frame, app: &mut App) {
         );
     frame.render_stateful_widget(settings_list, horizontal[0], &mut app.settings_list_state);
 
-    let keyboard_block = Block::bordered()
-        .border_style(Style::default().fg(theme.colors.border));
+    let keyboard_block = Block::bordered().border_style(Style::default().fg(theme.colors.border));
     let keyboard_inner = keyboard_block.inner(horizontal[1]);
 
     frame.render_widget(keyboard_block, horizontal[1]);

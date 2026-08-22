@@ -30,8 +30,11 @@ pub fn draw_index(frame: &mut Frame, app: &mut App) {
     // it cares about (border color, highlight, etc.), so the base color
     // shows through everywhere else.
     frame.render_widget(
-        Block::default()
-            .style(Style::default().bg(theme.colors.background).fg(theme.colors.text)),
+        Block::default().style(
+            Style::default()
+                .bg(theme.colors.background)
+                .fg(theme.colors.text),
+        ),
         full_area,
     );
 
@@ -50,7 +53,7 @@ pub fn draw_index(frame: &mut Frame, app: &mut App) {
 
     let horizontal = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Length(28), Constraint::Fill(1)])
+        .constraints([Constraint::Length(42), Constraint::Fill(1)])
         .split(vertical[0]);
 
     // The whole left-hand panel (search bar + list) lives inside one
