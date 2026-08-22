@@ -53,7 +53,29 @@ pub fn draw_settings_about(frame: &mut Frame, app: &mut App) {
         ])
         .split(inner_area);
 
-    let logo = Paragraph::new("logo").alignment(Alignment::Center);
+    let logo = Paragraph::new(
+        "████████████████████\n
+████████████████████\n
+████████████████████\n
+████████████████████\n
+████████████████████\n
+████████████████████\n
+████████████████████\n
+████████████████████\n
+████████████████████\n
+████████████████████\n
+████████████████████\n
+████████████████████\n
+████████████████████\n
+████████████████████\n
+████████████████████\n
+████████████████████\n
+████████████████████\n
+████████████████████\n
+████████████████████\n
+████████████████████",
+    )
+    .alignment(Alignment::Center);
     frame.render_widget(logo, vertical[1]);
 
     let content = Paragraph::new(format!(
