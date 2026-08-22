@@ -713,28 +713,6 @@ fn keysym_name_to_display(name: &str) -> String {
     name.to_string()
 }
 
-pub fn apply_layout(
-    switch_layout_cmd: &str,
-    layout: &str,
-    variant: &str,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let program = if switch_layout_cmd.trim().is_empty() {
-        "swaymsg"
-    } else {
-        switch_layout_cmd.trim()
-    };
-
-    run_switch_command(program, &["input", "type:keyboard", "xkb_layout", layout])?;
-
-    let variant_arg = if variant.is_empty() { "\"\"" } else { variant };
-    run_switch_command(
-        program,
-        &["input", "type:keyboard", "xkb_variant", variant_arg],
-    )?;
-
-    Ok(())
-}
-
 fn run_switch_command(program: &str, args: &[&str]) -> Result<(), Box<dyn std::error::Error>> {
     let output = Command::new(program).args(args).output()?;
 
