@@ -2,7 +2,6 @@ use crossterm::event::KeyCode;
 
 use crate::app::App;
 use crate::router;
-use crate::ui::keyboard::apply_layout;
 
 fn select_next_layout(app: &mut App) {
     let indices = app.filtered_layout_indices();
@@ -53,21 +52,6 @@ fn refresh_filtered_selection(app: &mut App) {
     }
 }
 
-fn apply_selected_layout(app: &mut App) {
-    if app.layouts.is_empty() {
-        return;
-    }
-
-    let layout = &app.layouts[app.selected_layout];
-
-    app.status_message = Some(
-        match apply_layout(&app.config.switch_layout, &layout.layout, &layout.variant) {
-            Ok(()) => format!("Switched to {}", layout.id),
-            Err(err) => format!("Failed to switch layout: {err}"),
-        },
-    );
-}
-
 pub fn handle_index_input(app: &mut App, key: KeyCode) {
     if app.command_mode {
         match key {
@@ -91,7 +75,6 @@ pub fn handle_index_input(app: &mut App, key: KeyCode) {
         KeyCode::Char(':') => {
             app.command_mode = true;
         }
-        KeyCode::Char(' ') => apply_selected_layout(app),
         KeyCode::Tab => {}
         KeyCode::Down => select_next_layout(app),
         KeyCode::Up => select_prev_layout(app),

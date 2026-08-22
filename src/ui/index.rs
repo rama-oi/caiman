@@ -14,7 +14,6 @@ use crate::ui::keyboard::{describe_key_event, find_highlight, highlight_label, r
 const HELP_ITEMS: &[&str] = &[
     "[type] search",
     "[↑↓] navigate",
-    "[space] apply",
     "[esc] clear search",
     "[:] command_mode",
     "[tab] switch_section",
@@ -194,8 +193,7 @@ pub fn draw_index(frame: &mut Frame, app: &mut App) {
                 ];
 
                 frame.render_widget(
-                    Paragraph::new(text)
-                        .alignment(ratatui::layout::Alignment::Center),
+                    Paragraph::new(text).alignment(ratatui::layout::Alignment::Center),
                     col_area,
                 );
             }
