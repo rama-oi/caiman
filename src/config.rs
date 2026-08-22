@@ -1,0 +1,79 @@
+use serde::Deserialize;
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct Config {
+    #[serde(default = "default_list_layout")]
+    pub list_layout: String,
+    #[serde(default = "default_switch_layout")]
+    pub switch_layout: String,
+    #[serde(default = "default_theme")]
+    pub theme: String,
+}
+
+fn default_list_layout() -> String {
+    "xkbcli list".to_string()
+}
+
+fn default_switch_layout() -> String {
+    "swaymsg".to_string()
+}
+
+fn default_theme() -> String {
+    "catppuccin-mocha".to_string()
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            list_layout: default_list_layout(),
+            switch_layout: default_switch_layout(),
+            theme: default_theme(),
+        }
+    }
+}
+
+/// The sample config shipped alongside the binary, embedded at compile
+/// time. Written out to `~/.config/caiman/config.toml` the first time
+/// caiman runs and finds no config there yet.
+const SAMPLE_CONFIG: &str = include_str!("../config.toml.sample");
+
+fn config_path() -> Option<std::path::PathBuf> {
+    let home = std::env::var_os("HOME")?;
+    Some(std::path::PathBuf::from(home).join(".config/caiman/config.toml"))
+}
+
+/// Load `~/.config/caiman/config.toml`, creating it from the bundled
+/// sample first if it doesn't exist yet. Falls back to `Config::default()`
+/// if `$HOME` isn't set, or if the file can't be read/parsed for some
+/// other reason — caiman should still start either way.
+pub fn load_config() -> Config {
+    let Some(path) = config_path() else {
+        return Config::default();
+    };
+
+    if !path.exists() {
+        if let Some(parent) = path.parent() {
+            if let Err(err) = std::fs::create_dir_all(parent) {
+                eprintln!("Failed to create {}: {err}", parent.display());
+            }
+        }
+
+        if let Err(err) = std::fs::write(&path, SAMPLE_CONFIG) {
+            eprintln!("Failed to write {}: {err}", path.display());
+        }
+    }
+
+    match std::fs::read_to_string(&path) {
+        Ok(raw) => match toml::from_str(&raw) {
+            Ok(config) => config,
+            Err(err) => {
+                eprintln!("Failed to parse {}: {err}", path.display());
+                Config::default()
+            }
+        },
+        Err(err) => {
+            eprintln!("Failed to read {}: {err}", path.display());
+            Config::default()
+        }
+    }
+}

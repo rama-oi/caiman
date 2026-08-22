@@ -48,12 +48,7 @@ pub fn draw_settings_about(frame: &mut Frame, app: &mut App) {
         .constraints([Constraint::Length(42), Constraint::Fill(1)])
         .split(vertical[0]);
 
-    let layout_list = List::new([
-        format!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION")),
-        env!("CARGO_PKG_AUTHORS").to_string(),
-        env!("CARGO_PKG_HOMEPAGE").to_string(),
-    ])
-    .block(
+    let layout_list = List::new(["Caiman v2026.1", "Pombo", "github.com/rama-oi/caiman"]).block(
         Block::bordered()
             .title(" about ")
             .title_style(Style::default().fg(theme.colors.header))

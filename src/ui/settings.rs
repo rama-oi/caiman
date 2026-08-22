@@ -31,11 +31,8 @@ pub fn draw_settings(frame: &mut Frame, app: &mut App) {
     let full_area = frame.area();
 
     frame.render_widget(
-        Block::default().style(
-            Style::default()
-                .bg(theme.colors.background)
-                .fg(theme.colors.text),
-        ),
+        Block::default()
+            .style(Style::default().bg(theme.colors.background).fg(theme.colors.text)),
         full_area,
     );
 
@@ -58,8 +55,8 @@ pub fn draw_settings(frame: &mut Frame, app: &mut App) {
         .split(vertical[0]);
 
     let items = [
-        "List Layouts\nxkbcli list".to_string(),
-        "Switch Layout\nswaymsg".to_string(),
+        format!("List Layouts\n{}", app.config.list_layout),
+        format!("Switch Layout\n{}", app.config.switch_layout),
         format!("Switch Theme\n{}", theme.name),
         "About Caiman".to_string(),
     ];
@@ -80,7 +77,8 @@ pub fn draw_settings(frame: &mut Frame, app: &mut App) {
         );
     frame.render_stateful_widget(settings_list, horizontal[0], &mut app.settings_list_state);
 
-    let keyboard_block = Block::bordered().border_style(Style::default().fg(theme.colors.border));
+    let keyboard_block = Block::bordered()
+        .border_style(Style::default().fg(theme.colors.border));
     let keyboard_inner = keyboard_block.inner(horizontal[1]);
 
     frame.render_widget(keyboard_block, horizontal[1]);

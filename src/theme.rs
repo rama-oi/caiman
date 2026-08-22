@@ -207,3 +207,23 @@ pub fn discover_themes() -> Vec<Theme> {
 
     themes
 }
+
+fn slugify(name: &str) -> String {
+    name.chars()
+        .map(|c| match c {
+            c if c.is_whitespace() || c == '_' => '-',
+            c => c.to_ascii_lowercase(),
+        })
+        .collect()
+}
+
+/// Find the index of the theme matching a config value like
+/// `"catppuccin-mocha"` against a theme named `"Catppuccin Mocha"`
+/// (case/whitespace-insensitive). Falls back to `0` if nothing matches.
+pub fn find_theme_index(themes: &[Theme], wanted: &str) -> usize {
+    let wanted = slugify(wanted);
+    themes
+        .iter()
+        .position(|t| slugify(&t.name) == wanted)
+        .unwrap_or(0)
+}

@@ -1,6 +1,14 @@
-list_layout = ""
+# The command caiman runs to discover the layouts installed on your
+# system. Needs to print the same YAML that `xkbcli list` does.
+list_layout = "xkbcli list"
 
-switch_layout = ""
+# The program caiman calls to actually switch the active keyboard layout.
+# caiman builds the rest of the command itself (it targets Sway's IPC), so
+# on a different compositor this is the one thing you'd need to change —
+# to whatever the equivalent of `swaymsg` is on your OS.
+switch_layout = "swaymsg"
 
-# Name of a theme installed in ~/.config/caiman/themes/.
+# Name of a theme installed in ~/.config/caiman/themes/, or one of the
+# themes bundled with caiman (e.g. "catppuccin-mocha", "dracula",
+# "tokyo-night").
 theme = "catppuccin-mocha"

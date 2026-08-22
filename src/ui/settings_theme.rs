@@ -22,11 +22,8 @@ pub fn draw_settings_themes(frame: &mut Frame, app: &mut App) {
     let full_area = frame.area();
 
     frame.render_widget(
-        Block::default().style(
-            Style::default()
-                .bg(theme.colors.background)
-                .fg(theme.colors.text),
-        ),
+        Block::default()
+            .style(Style::default().bg(theme.colors.background).fg(theme.colors.text)),
         full_area,
     );
 

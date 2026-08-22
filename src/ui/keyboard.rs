@@ -6,8 +6,8 @@ use ratatui::{
 };
 
 use serde::Deserialize;
+use std::collections::HashMap;
 use std::process::Command;
-use xkbcommon::xkb;
 
 use crate::theme::Theme;
 
@@ -282,8 +282,9 @@ pub struct LayoutInfo {
     pub layout: String,
     pub variant: String,
 
-    // The actual keys for this layout, loaded from the system via
-    // libxkbcommon. Falls back to `en_rows()` if loading fails.
+    // The actual keys for this layout, loaded from the system via the
+    // `xkbcli` command-line tool. Falls back to `en_rows()` if loading
+    // fails.
     pub rows: Vec<Vec<Key>>,
 }
 
@@ -304,15 +305,15 @@ struct XkbLayout {
     description: String,
 }
 
-/// Discover the layouts installed on the system.
+/// Discover the layouts installed on the system and, for each one, its
+/// actual key mappings — both entirely via OS commands (`xkbcli`), no
+/// linked keyboard-handling library required.
 ///
-/// This uses `xkbcli list`.
-///
-/// At this stage we're only using it to discover the layouts.
-/// The actual keyboard symbols will be loaded separately
-/// through libxkbcommon.
-pub fn discover_layouts() -> Vec<LayoutInfo> {
-    match get_layouts() {
+/// `list_layout_cmd` is the user-configurable command (see
+/// `Config::list_layout`, defaults to `"xkbcli list"`) used to enumerate
+/// installed layouts.
+pub fn discover_layouts(list_layout_cmd: &str) -> Vec<LayoutInfo> {
+    match get_layouts(list_layout_cmd) {
         Ok(mut layouts) => {
             println!("{} layouts", layouts.len());
 
@@ -335,15 +336,13 @@ pub fn discover_layouts() -> Vec<LayoutInfo> {
                         format!("{}_{}_{}", layout.brief, layout.layout, layout.variant)
                     };
 
-                    let rows = load_layout(&layout.layout, &layout.variant)
-                        .map(|keymap| build_rows(&keymap))
-                        .unwrap_or_else(|err| {
-                            eprintln!(
-                                "Failed to load keys for {} ({}): {err}",
-                                layout.layout, layout.variant
-                            );
-                            en_rows()
-                        });
+                    let rows = compile_rows(&layout.layout, &layout.variant).unwrap_or_else(|err| {
+                        eprintln!(
+                            "Failed to load keys for {} ({}): {err}",
+                            layout.layout, layout.variant
+                        );
+                        en_rows()
+                    });
 
                     LayoutInfo {
                         id,
@@ -370,11 +369,17 @@ pub fn discover_layouts() -> Vec<LayoutInfo> {
     }
 }
 
-fn get_layouts() -> Result<Vec<XkbLayout>, Box<dyn std::error::Error>> {
-    let output = Command::new("xkbcli").arg("list").output()?;
+fn get_layouts(list_layout_cmd: &str) -> Result<Vec<XkbLayout>, Box<dyn std::error::Error>> {
+    let (program, args) = split_command(list_layout_cmd, "xkbcli", &["list"]);
+
+    let output = Command::new(&program).args(&args).output()?;
 
     if !output.status.success() {
-        return Err(format!("xkbcli failed: {}", String::from_utf8_lossy(&output.stderr)).into());
+        return Err(format!(
+            "{list_layout_cmd} failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        )
+        .into());
     }
 
     let data: XkbData = serde_yaml::from_slice(&output.stdout)?;
@@ -382,41 +387,321 @@ fn get_layouts() -> Result<Vec<XkbLayout>, Box<dyn std::error::Error>> {
     Ok(data.layouts)
 }
 
+/// Split a user-configured command string like `"xkbcli list"` into a
+/// program name and its arguments. Falls back to `fallback_program`
+/// `fallback_args` if the configured command is blank.
+fn split_command(cmd: &str, fallback_program: &str, fallback_args: &[&str]) -> (String, Vec<String>) {
+    let mut parts = cmd.split_whitespace();
+
+    match parts.next() {
+        Some(program) => (program.to_string(), parts.map(str::to_string).collect()),
+        None => (
+            fallback_program.to_string(),
+            fallback_args.iter().map(|s| s.to_string()).collect(),
+        ),
+    }
+}
+
 // ============================================================
 // XKB keymap loading
 // ============================================================
 
-/// Compile an XKB layout using libxkbcommon.
+/// Compile an XKB layout via `xkbcli compile-keymap` and read back the
+/// resulting keymap as text.
 ///
-/// This does NOT change the system keyboard layout.
-/// It only loads the selected layout into an xkb::Keymap so
-/// that we can inspect its actual key mappings.
-pub fn load_layout(layout: &str, variant: &str) -> Result<xkb::Keymap, Box<dyn std::error::Error>> {
-    let mut context = xkb::Context::new(xkb::CONTEXT_NO_FLAGS);
-
-    // libxkbcommon logs compile errors straight to stderr by default,
-    // which corrupts the TUI's screen since it bypasses ratatui's buffer
-    // entirely. We already surface failures ourselves via the returned
-    // `Result`, so raise the threshold above `Error` and let only
-    // genuinely fatal (`Critical`) messages through.
-    context.set_log_level(xkb::LogLevel::Critical);
-
-    let rules = "evdev";
-    let model = "pc105";
-    let options: Option<String> = None;
-
-    let keymap = xkb::Keymap::new_from_names(
-        &context,
-        rules,
-        model,
+/// This does NOT change the system keyboard layout. It just asks
+/// libxkbcommon (through its CLI, not a linked library) to resolve the
+/// given layout/variant into a full keymap, which we then parse ourselves
+/// to find out what each key actually produces.
+fn compile_keymap_text(layout: &str, variant: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let mut command = Command::new("xkbcli");
+    command.args([
+        "compile-keymap",
+        "--rules",
+        "evdev",
+        "--model",
+        "pc105",
+        "--layout",
         layout,
-        variant,
-        options,
-        xkb::KEYMAP_COMPILE_NO_FLAGS,
-    )
-    .ok_or("failed to compile XKB keymap")?;
+    ]);
 
-    Ok(keymap)
+    if !variant.is_empty() {
+        command.args(["--variant", variant]);
+    }
+
+    let output = command.output()?;
+
+    if !output.status.success() {
+        return Err(format!(
+            "xkbcli compile-keymap failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        )
+        .into());
+    }
+
+    Ok(String::from_utf8_lossy(&output.stdout).into_owned())
+}
+
+/// Compile a layout and translate it straight into visual keyboard rows.
+fn compile_rows(layout: &str, variant: &str) -> Result<Vec<Vec<Key>>, Box<dyn std::error::Error>> {
+    let compiled = compile_keymap_text(layout, variant)?;
+    let levels = parse_symbol_levels(&compiled);
+    Ok(build_rows(&levels))
+}
+
+/// Parse every `key <NAME> { ... [ sym1, sym2, ... ] ... };` statement out
+/// of a compiled XKB keymap's text (as printed by `xkbcli compile-keymap`),
+/// keeping the *last* definition of each key name — later statements
+/// (e.g. a layout's own overrides) win, matching how XKB itself resolves
+/// them.
+fn parse_symbol_levels(compiled: &str) -> HashMap<String, Vec<String>> {
+    let mut levels: HashMap<String, Vec<String>> = HashMap::new();
+    let mut search_from = 0;
+
+    while let Some(rel) = compiled[search_from..].find("key <") {
+        let name_start = search_from + rel + "key <".len();
+
+        let Some(name_end_rel) = compiled[name_start..].find('>') else {
+            break;
+        };
+        let name = compiled[name_start..name_start + name_end_rel].to_string();
+        let after_name = name_start + name_end_rel + 1;
+
+        // Bound the search for this key's symbol list to its own
+        // statement, so we don't wander into the next key's brackets.
+        let Some(block_end_rel) = compiled[after_name..].find("};") else {
+            break;
+        };
+        let block = &compiled[after_name..after_name + block_end_rel];
+
+        if let Some(symbols) = extract_symbol_list(block) {
+            levels.insert(name, symbols);
+        }
+
+        search_from = after_name + block_end_rel + 2;
+    }
+
+    levels
+}
+
+/// Within a single `key <NAME> { ... }` body, find the symbol list — the
+/// first `[ ... ]` group whose opening bracket directly follows `=` or
+/// `{` (skipping index brackets like the `[group1]` in `type[group1] =`).
+fn extract_symbol_list(block: &str) -> Option<Vec<String>> {
+    let chars: Vec<char> = block.chars().collect();
+    let mut idx = 0;
+
+    while idx < chars.len() {
+        if chars[idx] == '[' {
+            let mut back = idx;
+            while back > 0 && chars[back - 1].is_whitespace() {
+                back -= 1;
+            }
+            let preceded_by_assignment = back > 0 && matches!(chars[back - 1], '=' | '{');
+
+            if preceded_by_assignment {
+                let close_offset = chars[idx..].iter().position(|&c| c == ']')?;
+                let inner: String = chars[idx + 1..idx + close_offset].iter().collect();
+
+                return Some(
+                    inner
+                        .split(',')
+                        .map(|s| s.trim().to_string())
+                        .filter(|s| !s.is_empty())
+                        .collect(),
+                );
+            }
+        }
+
+        idx += 1;
+    }
+
+    None
+}
+
+// ============================================================
+// Keysym name -> display text
+// ============================================================
+
+/// Best-effort translation of an XKB keysym *name* (as found in a compiled
+/// keymap's `xkb_symbols` section, e.g. "at", "eacute", "U2018") into the
+/// character it represents on screen.
+///
+/// Single-character keysym names pass straight through — that covers every
+/// plain letter and digit ("q", "Q", "5", ...), since those are their own
+/// keysym name in XKB. Everything else is looked up in a table of the
+/// common Latin/Latin-1 mnemonic names; anything not covered there (most
+/// non-Latin scripts, dead keys, etc.) just shows its raw keysym name —
+/// the same fallback the old libxkbcommon-based code used whenever a
+/// keysym had no direct Unicode representation.
+fn keysym_name_to_display(name: &str) -> String {
+    let name = name.trim();
+
+    if name.is_empty() || name == "NoSymbol" {
+        return String::new();
+    }
+
+    if name.chars().count() == 1 {
+        return name.to_string();
+    }
+
+    if let Some(ch) = named_keysym(name) {
+        return ch.to_string();
+    }
+
+    // XKB's convention for keysyms with no classic mnemonic: "U" followed
+    // by 4-8 hex digits of the Unicode code point.
+    if let Some(hex) = name.strip_prefix('U') {
+        if (4..=8).contains(&hex.len()) && hex.chars().all(|c| c.is_ascii_hexdigit()) {
+            if let Ok(code) = u32::from_str_radix(hex, 16) {
+                if let Some(ch) = char::from_u32(code) {
+                    return ch.to_string();
+                }
+            }
+        }
+    }
+
+    name.to_string()
+}
+
+fn named_keysym(name: &str) -> Option<char> {
+    Some(match name {
+        "space" => ' ',
+        "exclam" => '!',
+        "quotedbl" => '"',
+        "numbersign" => '#',
+        "dollar" => '$',
+        "percent" => '%',
+        "ampersand" => '&',
+        "apostrophe" | "quoteright" => '\'',
+        "parenleft" => '(',
+        "parenright" => ')',
+        "asterisk" => '*',
+        "plus" => '+',
+        "comma" => ',',
+        "minus" => '-',
+        "period" => '.',
+        "slash" => '/',
+        "colon" => ':',
+        "semicolon" => ';',
+        "less" => '<',
+        "equal" => '=',
+        "greater" => '>',
+        "question" => '?',
+        "at" => '@',
+        "bracketleft" => '[',
+        "backslash" => '\\',
+        "bracketright" => ']',
+        "asciicircum" => '^',
+        "underscore" => '_',
+        "grave" | "quoteleft" => '`',
+        "braceleft" => '{',
+        "bar" => '|',
+        "braceright" => '}',
+        "asciitilde" => '~',
+
+        "nobreakspace" => '\u{a0}',
+        "exclamdown" => '¡',
+        "cent" => '¢',
+        "sterling" => '£',
+        "currency" => '¤',
+        "yen" => '¥',
+        "brokenbar" => '¦',
+        "section" => '§',
+        "diaeresis" => '¨',
+        "copyright" => '©',
+        "ordfeminine" => 'ª',
+        "guillemotleft" => '«',
+        "notsign" => '¬',
+        "registered" => '®',
+        "macron" => '¯',
+        "degree" => '°',
+        "plusminus" => '±',
+        "twosuperior" => '²',
+        "threesuperior" => '³',
+        "acute" => '´',
+        "mu" => 'µ',
+        "paragraph" => '¶',
+        "periodcentered" => '·',
+        "cedilla" => '¸',
+        "onesuperior" => '¹',
+        "masculine" => 'º',
+        "guillemotright" => '»',
+        "onequarter" => '¼',
+        "onehalf" => '½',
+        "threequarters" => '¾',
+        "questiondown" => '¿',
+
+        "Agrave" => 'À',
+        "Aacute" => 'Á',
+        "Acircumflex" => 'Â',
+        "Atilde" => 'Ã',
+        "Adiaeresis" => 'Ä',
+        "Aring" => 'Å',
+        "AE" => 'Æ',
+        "Ccedilla" => 'Ç',
+        "Egrave" => 'È',
+        "Eacute" => 'É',
+        "Ecircumflex" => 'Ê',
+        "Ediaeresis" => 'Ë',
+        "Igrave" => 'Ì',
+        "Iacute" => 'Í',
+        "Icircumflex" => 'Î',
+        "Idiaeresis" => 'Ï',
+        "ETH" | "Eth" => 'Ð',
+        "Ntilde" => 'Ñ',
+        "Ograve" => 'Ò',
+        "Oacute" => 'Ó',
+        "Ocircumflex" => 'Ô',
+        "Otilde" => 'Õ',
+        "Odiaeresis" => 'Ö',
+        "multiply" => '×',
+        "Ooblique" => 'Ø',
+        "Ugrave" => 'Ù',
+        "Uacute" => 'Ú',
+        "Ucircumflex" => 'Û',
+        "Udiaeresis" => 'Ü',
+        "Yacute" => 'Ý',
+        "THORN" | "Thorn" => 'Þ',
+        "ssharp" => 'ß',
+
+        "agrave" => 'à',
+        "aacute" => 'á',
+        "acircumflex" => 'â',
+        "atilde" => 'ã',
+        "adiaeresis" => 'ä',
+        "aring" => 'å',
+        "ae" => 'æ',
+        "ccedilla" => 'ç',
+        "egrave" => 'è',
+        "eacute" => 'é',
+        "ecircumflex" => 'ê',
+        "ediaeresis" => 'ë',
+        "igrave" => 'ì',
+        "iacute" => 'í',
+        "icircumflex" => 'î',
+        "idiaeresis" => 'ï',
+        "eth" => 'ð',
+        "ntilde" => 'ñ',
+        "ograve" => 'ò',
+        "oacute" => 'ó',
+        "ocircumflex" => 'ô',
+        "otilde" => 'õ',
+        "odiaeresis" => 'ö',
+        "division" => '÷',
+        "oslash" => 'ø',
+        "ugrave" => 'ù',
+        "uacute" => 'ú',
+        "ucircumflex" => 'û',
+        "udiaeresis" => 'ü',
+        "yacute" => 'ý',
+        "thorn" => 'þ',
+        "ydiaeresis" => 'ÿ',
+
+        "EuroSign" => '€',
+
+        _ => return None,
+    })
 }
 
 // ============================================================
@@ -425,18 +710,32 @@ pub fn load_layout(layout: &str, variant: &str) -> Result<xkb::Keymap, Box<dyn s
 
 /// Actually switch the system's active keyboard layout.
 ///
-/// This targets Sway, via its IPC (`swaymsg`), which is the mechanism
-/// Sway itself uses under the hood — there's no X11 involved, so tools
-/// like `setxkbmap` don't apply here. `type:keyboard` targets every
-/// connected keyboard rather than a single device id, since most setups
-/// only have one and it saves having to look an id up via
-/// `swaymsg -t get_inputs` first.
+/// This targets Sway, via its IPC (`swaymsg`, or whatever
+/// `Config::switch_layout` is set to), which is the mechanism Sway itself
+/// uses under the hood — there's no X11 involved, so tools like
+/// `setxkbmap` don't apply here. `type:keyboard` targets every connected
+/// keyboard rather than a single device id, since most setups only have
+/// one and it saves having to look an id up via `swaymsg -t get_inputs`
+/// first.
 ///
+/// `switch_layout_cmd` is the user-configurable program name (see
+/// `Config::switch_layout`, defaults to `"swaymsg"`) — the arguments
+/// themselves are still built here, since they're compositor-specific.
 /// (If you switch compositors later — Hyprland, KDE, GNOME, etc. — this
 /// is the one place that needs to change; each has its own equivalent of
 /// this call.)
-pub fn apply_layout(layout: &str, variant: &str) -> Result<(), Box<dyn std::error::Error>> {
-    run_swaymsg(&["input", "type:keyboard", "xkb_layout", layout])?;
+pub fn apply_layout(
+    switch_layout_cmd: &str,
+    layout: &str,
+    variant: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let program = if switch_layout_cmd.trim().is_empty() {
+        "swaymsg"
+    } else {
+        switch_layout_cmd.trim()
+    };
+
+    run_switch_command(program, &["input", "type:keyboard", "xkb_layout", layout])?;
 
     // Always set the variant explicitly (even to ""), so switching from a
     // layout with a variant back to the plain layout clears the old one
@@ -445,13 +744,16 @@ pub fn apply_layout(layout: &str, variant: &str) -> Result<(), Box<dyn std::erro
     // when swaymsg joins argv into the command text, turning
     // `xkb_variant ""` into `xkb_variant` (missing its value entirely).
     let variant_arg = if variant.is_empty() { "\"\"" } else { variant };
-    run_swaymsg(&["input", "type:keyboard", "xkb_variant", variant_arg])?;
+    run_switch_command(
+        program,
+        &["input", "type:keyboard", "xkb_variant", variant_arg],
+    )?;
 
     Ok(())
 }
 
-fn run_swaymsg(args: &[&str]) -> Result<(), Box<dyn std::error::Error>> {
-    let output = Command::new("swaymsg").args(args).output()?;
+fn run_switch_command(program: &str, args: &[&str]) -> Result<(), Box<dyn std::error::Error>> {
+    let output = Command::new(program).args(args).output()?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -474,17 +776,17 @@ fn run_swaymsg(args: &[&str]) -> Result<(), Box<dyn std::error::Error>> {
             message.push_str(stdout.trim());
         }
         if message.is_empty() {
-            message.push_str("swaymsg exited with an error but printed nothing");
+            message.push_str(&format!("{program} exited with an error but printed nothing"));
         }
 
-        return Err(format!("swaymsg failed: {message}").into());
+        return Err(format!("{program} failed: {message}").into());
     }
 
     Ok(())
 }
 
 // ============================================================
-// Translating a loaded keymap into the visual keyboard rows
+// Translating a compiled keymap into the visual keyboard rows
 // ============================================================
 
 /// Canonical XKB key names (as assigned by the "evdev" rules) for the
@@ -550,37 +852,14 @@ const ROW4_NAMES: [Option<&str>; 10] = [
     Some("AB10"),
 ];
 
-/// Get the displayable label for a single shift level of a key, e.g. the
-/// unshifted ("a") or shifted ("A") character. Falls back to the keysym's
-/// name (e.g. "backspace") if it has no direct Unicode representation, and
-/// gives up (returns `None`) if the level is empty or unprintable.
-fn level_label(
-    keymap: &xkb::Keymap,
-    keycode: xkb::Keycode,
-    level: xkb::LevelIndex,
-) -> Option<String> {
-    let sym = *keymap.key_get_syms_by_level(keycode, 0, level).first()?;
-
-    let utf8 = xkb::keysym_to_utf8(sym);
-    if !utf8.is_empty() && !utf8.chars().any(|c| c.is_control()) {
-        return Some(utf8);
-    }
-
-    let name = xkb::keysym_get_name(sym);
-    if name.is_empty() { None } else { Some(name) }
-}
-
 /// Build a `Key::Normal` for the given canonical XKB key name, using the
-/// unshifted/shifted keysyms from `keymap`. Falls back to `fallback` (the
-/// US QWERTY key at the same position) if the key can't be found or the
-/// layout doesn't define it.
-fn translated_key(keymap: &xkb::Keymap, name: &str, fallback: Key) -> Key {
-    let Some(keycode) = keymap.key_by_name(name) else {
+/// unshifted/shifted symbol levels from `levels`. Falls back to
+/// `fallback` (the US QWERTY key at the same position) if the key can't
+/// be found or the layout doesn't define it.
+fn translated_key(levels: &HashMap<String, Vec<String>>, name: &str, fallback: Key) -> Key {
+    let Some(syms) = levels.get(name) else {
         return fallback;
     };
-
-    let unshifted = level_label(keymap, keycode, 0);
-    let shifted = level_label(keymap, keycode, 1);
 
     let Key::Normal {
         bottom_left: fallback_unshifted,
@@ -591,31 +870,40 @@ fn translated_key(keymap: &xkb::Keymap, name: &str, fallback: Key) -> Key {
         return fallback;
     };
 
-    let unshifted = unshifted.unwrap_or_else(|| fallback_unshifted.clone());
-    let shifted = shifted.unwrap_or_else(|| fallback_shifted.clone());
+    let unshifted = syms
+        .first()
+        .map(|s| keysym_name_to_display(s))
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| fallback_unshifted.clone());
+
+    let shifted = syms
+        .get(1)
+        .map(|s| keysym_name_to_display(s))
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| fallback_shifted.clone());
 
     Key::new(&shifted, &unshifted, &shifted, &unshifted)
 }
 
-fn translate_row(row: Vec<Key>, names: &[Option<&str>], keymap: &xkb::Keymap) -> Vec<Key> {
+fn translate_row(row: Vec<Key>, names: &[Option<&str>], levels: &HashMap<String, Vec<String>>) -> Vec<Key> {
     row.into_iter()
         .enumerate()
         .map(|(i, key)| match names.get(i).copied().flatten() {
-            Some(name) => translated_key(keymap, name, key),
+            Some(name) => translated_key(levels, name, key),
             None => key,
         })
         .collect()
 }
 
-/// Build the visual keyboard rows for a loaded layout, translating every
+/// Build the visual keyboard rows for a compiled layout, translating every
 /// alphanumeric/symbol key to what that layout actually produces while
 /// keeping function/modifier keys (backspace, tab, enter, shift, etc.)
 /// labeled the same regardless of layout.
-pub fn build_rows(keymap: &xkb::Keymap) -> Vec<Vec<Key>> {
+fn build_rows(levels: &HashMap<String, Vec<String>>) -> Vec<Vec<Key>> {
     let row1 = en_row1();
     let row1 = {
         let backspace = row1.last().cloned();
-        let mut translated = translate_row(row1[..13].to_vec(), &ROW1_NAMES, keymap);
+        let mut translated = translate_row(row1[..13].to_vec(), &ROW1_NAMES, levels);
         if let Some(backspace) = backspace {
             translated.push(backspace);
         }
@@ -630,9 +918,9 @@ pub fn build_rows(keymap: &xkb::Keymap) -> Vec<Vec<Key>> {
         if let Some(tab) = tab {
             translated.push(tab);
         }
-        translated.extend(translate_row(row2[1..13].to_vec(), &ROW2_NAMES, keymap));
+        translated.extend(translate_row(row2[1..13].to_vec(), &ROW2_NAMES, levels));
         if let Some(fallback) = bksl {
-            translated.push(translated_key(keymap, ROW2_BKSL, fallback));
+            translated.push(translated_key(levels, ROW2_BKSL, fallback));
         }
         translated
     };
@@ -645,7 +933,7 @@ pub fn build_rows(keymap: &xkb::Keymap) -> Vec<Vec<Key>> {
         if let Some(caps) = caps {
             translated.push(caps);
         }
-        translated.extend(translate_row(row3[1..12].to_vec(), &ROW3_NAMES, keymap));
+        translated.extend(translate_row(row3[1..12].to_vec(), &ROW3_NAMES, levels));
         if let Some(enter) = enter {
             translated.push(enter);
         }
@@ -660,7 +948,7 @@ pub fn build_rows(keymap: &xkb::Keymap) -> Vec<Vec<Key>> {
         if let Some(l_shift) = l_shift {
             translated.push(l_shift);
         }
-        translated.extend(translate_row(row4[1..11].to_vec(), &ROW4_NAMES, keymap));
+        translated.extend(translate_row(row4[1..11].to_vec(), &ROW4_NAMES, levels));
         if let Some(r_shift) = r_shift {
             translated.push(r_shift);
         }

@@ -1,10 +1,11 @@
 use std::io;
 
+use crate::config::{Config, load_config};
 use crate::input::index::handle_index_input;
 use crate::input::settings::handle_settings_input;
 use crate::input::settings_about::handle_settings_about_input;
 use crate::input::settings_theme::handle_settings_themes_input;
-use crate::theme::{Theme, discover_themes};
+use crate::theme::{Theme, discover_themes, find_theme_index};
 use crate::ui::index::draw_index;
 use crate::ui::keyboard::{LayoutInfo, discover_layouts};
 use crate::ui::settings::draw_settings;
@@ -33,6 +34,7 @@ pub struct App {
     pub selected_theme: usize,
     pub theme_list_state: ListState,
     pub settings_list_state: ListState,
+    pub config: Config,
 }
 
 impl App {
@@ -71,19 +73,24 @@ impl App {
 }
 
 pub fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<()> {
+    let config = load_config();
+    let themes = discover_themes();
+    let selected_theme = find_theme_index(&themes, &config.theme);
+
     let mut app = App {
         screen: Screen::Index,
         should_quit: false,
         command_mode: false,
         selected_layout: 0,
-        layouts: discover_layouts(),
+        layouts: discover_layouts(&config.list_layout),
         layout_list_state: ListState::default().with_selected(Some(0)),
         search_query: String::new(),
         status_message: None,
-        themes: discover_themes(),
-        selected_theme: 0,
-        theme_list_state: ListState::default().with_selected(Some(0)),
+        themes,
+        selected_theme,
+        theme_list_state: ListState::default().with_selected(Some(selected_theme)),
         settings_list_state: ListState::default().with_selected(Some(0)),
+        config,
     };
 
     loop {

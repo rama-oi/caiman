@@ -63,10 +63,12 @@ fn apply_selected_layout(app: &mut App) {
 
     let layout = &app.layouts[app.selected_layout];
 
-    app.status_message = Some(match apply_layout(&layout.layout, &layout.variant) {
-        Ok(()) => format!("Switched to {}", layout.id),
-        Err(err) => format!("Failed to switch layout: {err}"),
-    });
+    app.status_message = Some(
+        match apply_layout(&app.config.switch_layout, &layout.layout, &layout.variant) {
+            Ok(()) => format!("Switched to {}", layout.id),
+            Err(err) => format!("Failed to switch layout: {err}"),
+        },
+    );
 }
 
 pub fn handle_index_input(app: &mut App, key: KeyCode) {
