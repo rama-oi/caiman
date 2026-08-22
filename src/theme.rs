@@ -118,19 +118,35 @@ where
 // Theme discovery
 // ============================================================
 
-/// Themes bundled with caiman itself, embedded at compile time. These act
-/// as the fallback set until a theme has actually been installed into the
-/// user's config directory (see `user_themes_dir`).
-const BUNDLED_THEMES: &[&str] = &[
-    include_str!("../themes/catppuccin_mocha.toml"),
-    include_str!("../themes/catppuccin_latte.toml"),
-    include_str!("../themes/dracula.toml"),
-    include_str!("../themes/mako.toml"),
-    include_str!("../themes/melange_dark.toml"),
-    include_str!("../themes/pomboverso.toml"),
-    include_str!("../themes/rama.toml"),
-    include_str!("../themes/teyin.toml"),
-    include_str!("../themes/tokyo_night.toml"),
+/// Themes bundled with caiman itself, embedded at compile time. These are
+/// written out to `~/.config/caiman/themes/` the first time caiman runs
+/// (see `install_bundled_themes_if_missing`) and act as the fallback set
+/// if that directory is ever missing or emptied out afterwards.
+const BUNDLED_THEMES: &[(&str, &str)] = &[
+    (
+        "catppuccin_mocha.toml",
+        include_str!("../themes/catppuccin_mocha.toml"),
+    ),
+    (
+        "catppuccin_latte.toml",
+        include_str!("../themes/catppuccin_latte.toml"),
+    ),
+    ("dracula.toml", include_str!("../themes/dracula.toml")),
+    ("mako.toml", include_str!("../themes/mako.toml")),
+    (
+        "melange_dark.toml",
+        include_str!("../themes/melange_dark.toml"),
+    ),
+    (
+        "pomboverso.toml",
+        include_str!("../themes/pomboverso.toml"),
+    ),
+    ("rama.toml", include_str!("../themes/rama.toml")),
+    ("teyin.toml", include_str!("../themes/teyin.toml")),
+    (
+        "tokyo_night.toml",
+        include_str!("../themes/tokyo_night.toml"),
+    ),
 ];
 
 fn parse_theme_toml(raw: &str) -> Result<Theme, toml::de::Error> {
@@ -140,7 +156,7 @@ fn parse_theme_toml(raw: &str) -> Result<Theme, toml::de::Error> {
 fn load_bundled_themes() -> Vec<Theme> {
     BUNDLED_THEMES
         .iter()
-        .filter_map(|raw| match parse_theme_toml(raw) {
+        .filter_map(|(_, raw)| match parse_theme_toml(raw) {
             Ok(theme) => Some(theme),
             Err(err) => {
                 eprintln!("Failed to parse bundled theme: {err}");
@@ -150,12 +166,39 @@ fn load_bundled_themes() -> Vec<Theme> {
         .collect()
 }
 
-/// `~/.config/caiman/themes/`, where users (or a future `caiman theme
-/// install` command) drop additional theme `.toml` files. Not created
-/// automatically — this only reads what's already there.
+/// `~/.config/caiman/themes/` — same directory `config::load_config` seeds
+/// `config.toml` into, just for theme files instead.
 fn user_themes_dir() -> Option<std::path::PathBuf> {
     let home = std::env::var_os("HOME")?;
     Some(std::path::PathBuf::from(home).join(".config/caiman/themes"))
+}
+
+/// Copy the bundled themes into `~/.config/caiman/themes/` the first time
+/// caiman runs and that directory doesn't exist yet — the theme
+/// counterpart to `config::load_config` seeding `config.toml` from the
+/// bundled sample. After this, the files on disk are what's actually
+/// used and editable; the embedded copies only matter as this one-time
+/// seed and as an ultimate fallback if the directory is ever emptied out.
+pub fn install_bundled_themes_if_missing() {
+    let Some(dir) = user_themes_dir() else {
+        return;
+    };
+
+    if dir.exists() {
+        return;
+    }
+
+    if let Err(err) = std::fs::create_dir_all(&dir) {
+        eprintln!("Failed to create {}: {err}", dir.display());
+        return;
+    }
+
+    for (filename, contents) in BUNDLED_THEMES {
+        let path = dir.join(filename);
+        if let Err(err) = std::fs::write(&path, contents) {
+            eprintln!("Failed to write {}: {err}", path.display());
+        }
+    }
 }
 
 fn load_user_themes() -> Vec<Theme> {
@@ -188,10 +231,12 @@ fn load_user_themes() -> Vec<Theme> {
 
 /// Discover the available themes.
 ///
-/// Prefers themes actually installed under `~/.config/caiman/themes/`;
-/// until that's set up (or if it's empty), falls back to the themes
-/// bundled with the binary so the theme picker still has something to
-/// show.
+/// Reads from `~/.config/caiman/themes/`, which `install_bundled_themes_if_missing`
+/// seeds with the bundled themes the first time caiman runs — so in
+/// practice this is what actually gets used, and it's what the person
+/// edits/adds to. Falls back to the themes embedded in the binary directly
+/// if that directory is somehow still missing or was emptied out, so the
+/// theme picker always has something to show.
 pub fn discover_themes() -> Vec<Theme> {
     let mut themes = load_user_themes();
 

@@ -42,7 +42,7 @@ pub fn draw_settings_themes(frame: &mut Frame, app: &mut App) {
 
     let horizontal = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Length(42), Constraint::Fill(1)])
+        .constraints([Constraint::Length(28), Constraint::Fill(1)])
         .split(vertical[0]);
 
     let theme_items: Vec<ListItem> = app

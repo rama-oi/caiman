@@ -5,7 +5,7 @@ use crate::input::index::handle_index_input;
 use crate::input::settings::handle_settings_input;
 use crate::input::settings_about::handle_settings_about_input;
 use crate::input::settings_theme::handle_settings_themes_input;
-use crate::theme::{Theme, discover_themes, find_theme_index};
+use crate::theme::{Theme, discover_themes, find_theme_index, install_bundled_themes_if_missing};
 use crate::ui::index::draw_index;
 use crate::ui::keyboard::{LayoutInfo, discover_layouts};
 use crate::ui::settings::draw_settings;
@@ -74,6 +74,7 @@ impl App {
 
 pub fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<()> {
     let config = load_config();
+    install_bundled_themes_if_missing();
     let themes = discover_themes();
     let selected_theme = find_theme_index(&themes, &config.theme);
 

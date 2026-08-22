@@ -8,6 +8,7 @@ use ratatui::{
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::process::Command;
+use xkbcommon::xkb;
 
 use crate::theme::Theme;
 
@@ -336,13 +337,14 @@ pub fn discover_layouts(list_layout_cmd: &str) -> Vec<LayoutInfo> {
                         format!("{}_{}_{}", layout.brief, layout.layout, layout.variant)
                     };
 
-                    let rows = compile_rows(&layout.layout, &layout.variant).unwrap_or_else(|err| {
-                        eprintln!(
-                            "Failed to load keys for {} ({}): {err}",
-                            layout.layout, layout.variant
-                        );
-                        en_rows()
-                    });
+                    let rows =
+                        compile_rows(&layout.layout, &layout.variant).unwrap_or_else(|err| {
+                            eprintln!(
+                                "Failed to load keys for {} ({}): {err}",
+                                layout.layout, layout.variant
+                            );
+                            en_rows()
+                        });
 
                     LayoutInfo {
                         id,
@@ -390,7 +392,11 @@ fn get_layouts(list_layout_cmd: &str) -> Result<Vec<XkbLayout>, Box<dyn std::err
 /// Split a user-configured command string like `"xkbcli list"` into a
 /// program name and its arguments. Falls back to `fallback_program`
 /// `fallback_args` if the configured command is blank.
-fn split_command(cmd: &str, fallback_program: &str, fallback_args: &[&str]) -> (String, Vec<String>) {
+fn split_command(
+    cmd: &str,
+    fallback_program: &str,
+    fallback_args: &[&str],
+) -> (String, Vec<String>) {
     let mut parts = cmd.split_whitespace();
 
     match parts.next() {
@@ -410,7 +416,8 @@ fn split_command(cmd: &str, fallback_program: &str, fallback_args: &[&str]) -> (
 /// resulting keymap as text.
 ///
 /// This does NOT change the system keyboard layout. It just asks
-/// libxkbcommon (through its CLI, not a linked library) to resolve the
+/// libxkbcommon (through the `xkbcli` command, so per-layout keymap
+/// discovery doesn't need a system compositor connection) to resolve the
 /// given layout/variant into a full keymap, which we then parse ourselves
 /// to find out what each key actually produces.
 fn compile_keymap_text(layout: &str, variant: &str) -> Result<String, Box<dyn std::error::Error>> {
@@ -523,17 +530,17 @@ fn extract_symbol_list(block: &str) -> Option<Vec<String>> {
 // Keysym name -> display text
 // ============================================================
 
-/// Best-effort translation of an XKB keysym *name* (as found in a compiled
-/// keymap's `xkb_symbols` section, e.g. "at", "eacute", "U2018") into the
-/// character it represents on screen.
+/// Translate an XKB keysym *name* (as found in a compiled keymap's
+/// `xkb_symbols` section, e.g. "at", "eacute", "Cyrillic_a", "U2018")
+/// into the character it represents on screen.
 ///
-/// Single-character keysym names pass straight through — that covers every
-/// plain letter and digit ("q", "Q", "5", ...), since those are their own
-/// keysym name in XKB. Everything else is looked up in a table of the
-/// common Latin/Latin-1 mnemonic names; anything not covered there (most
-/// non-Latin scripts, dead keys, etc.) just shows its raw keysym name —
-/// the same fallback the old libxkbcommon-based code used whenever a
-/// keysym had no direct Unicode representation.
+/// This defers to libxkbcommon's own name table (`keysym_from_name` +
+/// `keysym_to_utf8`) rather than a hand-maintained one, so it's correct
+/// for every script the library knows about (Cyrillic, Greek, Arabic,
+/// CJK, dead keys, ...), not just the common Latin-1 set. Falls back to
+/// showing the raw keysym name for the rare keysym that has no direct
+/// Unicode representation (e.g. purely functional keys that end up here
+/// by mistake) — the same fallback the original keymap-based code used.
 fn keysym_name_to_display(name: &str) -> String {
     let name = name.trim();
 
@@ -545,163 +552,14 @@ fn keysym_name_to_display(name: &str) -> String {
         return name.to_string();
     }
 
-    if let Some(ch) = named_keysym(name) {
-        return ch.to_string();
-    }
+    let sym = xkb::keysym_from_name(name, xkb::KEYSYM_NO_FLAGS);
+    let utf8 = xkb::keysym_to_utf8(sym);
 
-    // XKB's convention for keysyms with no classic mnemonic: "U" followed
-    // by 4-8 hex digits of the Unicode code point.
-    if let Some(hex) = name.strip_prefix('U') {
-        if (4..=8).contains(&hex.len()) && hex.chars().all(|c| c.is_ascii_hexdigit()) {
-            if let Ok(code) = u32::from_str_radix(hex, 16) {
-                if let Some(ch) = char::from_u32(code) {
-                    return ch.to_string();
-                }
-            }
-        }
+    if !utf8.is_empty() && !utf8.chars().any(|c| c.is_control()) {
+        return utf8;
     }
 
     name.to_string()
-}
-
-fn named_keysym(name: &str) -> Option<char> {
-    Some(match name {
-        "space" => ' ',
-        "exclam" => '!',
-        "quotedbl" => '"',
-        "numbersign" => '#',
-        "dollar" => '$',
-        "percent" => '%',
-        "ampersand" => '&',
-        "apostrophe" | "quoteright" => '\'',
-        "parenleft" => '(',
-        "parenright" => ')',
-        "asterisk" => '*',
-        "plus" => '+',
-        "comma" => ',',
-        "minus" => '-',
-        "period" => '.',
-        "slash" => '/',
-        "colon" => ':',
-        "semicolon" => ';',
-        "less" => '<',
-        "equal" => '=',
-        "greater" => '>',
-        "question" => '?',
-        "at" => '@',
-        "bracketleft" => '[',
-        "backslash" => '\\',
-        "bracketright" => ']',
-        "asciicircum" => '^',
-        "underscore" => '_',
-        "grave" | "quoteleft" => '`',
-        "braceleft" => '{',
-        "bar" => '|',
-        "braceright" => '}',
-        "asciitilde" => '~',
-
-        "nobreakspace" => '\u{a0}',
-        "exclamdown" => '¡',
-        "cent" => '¢',
-        "sterling" => '£',
-        "currency" => '¤',
-        "yen" => '¥',
-        "brokenbar" => '¦',
-        "section" => '§',
-        "diaeresis" => '¨',
-        "copyright" => '©',
-        "ordfeminine" => 'ª',
-        "guillemotleft" => '«',
-        "notsign" => '¬',
-        "registered" => '®',
-        "macron" => '¯',
-        "degree" => '°',
-        "plusminus" => '±',
-        "twosuperior" => '²',
-        "threesuperior" => '³',
-        "acute" => '´',
-        "mu" => 'µ',
-        "paragraph" => '¶',
-        "periodcentered" => '·',
-        "cedilla" => '¸',
-        "onesuperior" => '¹',
-        "masculine" => 'º',
-        "guillemotright" => '»',
-        "onequarter" => '¼',
-        "onehalf" => '½',
-        "threequarters" => '¾',
-        "questiondown" => '¿',
-
-        "Agrave" => 'À',
-        "Aacute" => 'Á',
-        "Acircumflex" => 'Â',
-        "Atilde" => 'Ã',
-        "Adiaeresis" => 'Ä',
-        "Aring" => 'Å',
-        "AE" => 'Æ',
-        "Ccedilla" => 'Ç',
-        "Egrave" => 'È',
-        "Eacute" => 'É',
-        "Ecircumflex" => 'Ê',
-        "Ediaeresis" => 'Ë',
-        "Igrave" => 'Ì',
-        "Iacute" => 'Í',
-        "Icircumflex" => 'Î',
-        "Idiaeresis" => 'Ï',
-        "ETH" | "Eth" => 'Ð',
-        "Ntilde" => 'Ñ',
-        "Ograve" => 'Ò',
-        "Oacute" => 'Ó',
-        "Ocircumflex" => 'Ô',
-        "Otilde" => 'Õ',
-        "Odiaeresis" => 'Ö',
-        "multiply" => '×',
-        "Ooblique" => 'Ø',
-        "Ugrave" => 'Ù',
-        "Uacute" => 'Ú',
-        "Ucircumflex" => 'Û',
-        "Udiaeresis" => 'Ü',
-        "Yacute" => 'Ý',
-        "THORN" | "Thorn" => 'Þ',
-        "ssharp" => 'ß',
-
-        "agrave" => 'à',
-        "aacute" => 'á',
-        "acircumflex" => 'â',
-        "atilde" => 'ã',
-        "adiaeresis" => 'ä',
-        "aring" => 'å',
-        "ae" => 'æ',
-        "ccedilla" => 'ç',
-        "egrave" => 'è',
-        "eacute" => 'é',
-        "ecircumflex" => 'ê',
-        "ediaeresis" => 'ë',
-        "igrave" => 'ì',
-        "iacute" => 'í',
-        "icircumflex" => 'î',
-        "idiaeresis" => 'ï',
-        "eth" => 'ð',
-        "ntilde" => 'ñ',
-        "ograve" => 'ò',
-        "oacute" => 'ó',
-        "ocircumflex" => 'ô',
-        "otilde" => 'õ',
-        "odiaeresis" => 'ö',
-        "division" => '÷',
-        "oslash" => 'ø',
-        "ugrave" => 'ù',
-        "uacute" => 'ú',
-        "ucircumflex" => 'û',
-        "udiaeresis" => 'ü',
-        "yacute" => 'ý',
-        "thorn" => 'þ',
-        "ydiaeresis" => 'ÿ',
-
-        "EuroSign" => '€',
-
-        _ => return None,
-    })
 }
 
 // ============================================================
@@ -776,7 +634,9 @@ fn run_switch_command(program: &str, args: &[&str]) -> Result<(), Box<dyn std::e
             message.push_str(stdout.trim());
         }
         if message.is_empty() {
-            message.push_str(&format!("{program} exited with an error but printed nothing"));
+            message.push_str(&format!(
+                "{program} exited with an error but printed nothing"
+            ));
         }
 
         return Err(format!("{program} failed: {message}").into());
@@ -885,7 +745,11 @@ fn translated_key(levels: &HashMap<String, Vec<String>>, name: &str, fallback: K
     Key::new(&shifted, &unshifted, &shifted, &unshifted)
 }
 
-fn translate_row(row: Vec<Key>, names: &[Option<&str>], levels: &HashMap<String, Vec<String>>) -> Vec<Key> {
+fn translate_row(
+    row: Vec<Key>,
+    names: &[Option<&str>],
+    levels: &HashMap<String, Vec<String>>,
+) -> Vec<Key> {
     row.into_iter()
         .enumerate()
         .map(|(i, key)| match names.get(i).copied().flatten() {
