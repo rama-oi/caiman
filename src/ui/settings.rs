@@ -88,6 +88,7 @@ pub fn draw_settings(frame: &mut Frame, app: &mut App) {
         keyboard_inner,
         &app.layouts[app.selected_layout].rows,
         &theme,
+        None,
     );
 
     let key_preview = List::new(["key preview"]).block(

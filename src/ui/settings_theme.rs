@@ -85,6 +85,7 @@ pub fn draw_settings_themes(frame: &mut Frame, app: &mut App) {
         keyboard_inner,
         &app.layouts[app.selected_layout].rows,
         &theme,
+        None,
     );
 
     let key_preview = List::new([format!("{} — by {}", theme.name, theme.author)]).block(

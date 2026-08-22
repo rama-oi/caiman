@@ -12,7 +12,7 @@ use crate::ui::settings::draw_settings;
 use crate::ui::settings_about::draw_settings_about;
 use crate::ui::settings_theme::draw_settings_themes;
 
-use crossterm::event::{self, Event};
+use crossterm::event::{self, Event, KeyEvent};
 use ratatui::{Terminal, backend::CrosstermBackend, widgets::ListState};
 
 pub enum Screen {
@@ -30,6 +30,7 @@ pub struct App {
     pub layout_list_state: ListState,
     pub search_query: String,
     pub status_message: Option<String>,
+    pub last_key_event: Option<KeyEvent>,
     pub themes: Vec<Theme>,
     pub selected_theme: usize,
     pub theme_list_state: ListState,
@@ -81,6 +82,7 @@ pub fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<
         layout_list_state: ListState::default().with_selected(Some(0)),
         search_query: String::new(),
         status_message: None,
+        last_key_event: None,
         themes,
         selected_theme,
         theme_list_state: ListState::default().with_selected(Some(selected_theme)),
@@ -97,6 +99,8 @@ pub fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<
         })?;
 
         if let Event::Key(key) = event::read()? {
+            app.last_key_event = Some(key);
+
             match app.screen {
                 Screen::Index => handle_index_input(&mut app, key.code),
                 Screen::Settings => handle_settings_input(&mut app, key.code),

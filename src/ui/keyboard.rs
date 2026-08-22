@@ -1,10 +1,11 @@
 use ratatui::{
     Frame,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
-    style::Style,
+    style::{Modifier, Style},
     widgets::{Block, Padding, Paragraph},
 };
 
+use crossterm::event::{KeyCode as CtKeyCode, KeyEvent, ModifierKeyCode};
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::process::Command;
@@ -64,7 +65,30 @@ impl Key {
         }
     }
 
-    fn render(&self, _area: Rect, theme: &Theme) -> Paragraph<'static> {
+    /// Whether this key's printed label (either shifted or unshifted face)
+    /// matches the given target, case-insensitively.
+    fn matches_label(&self, target: &str) -> bool {
+        let (top, bottom) = match self {
+            Self::Normal {
+                top_left,
+                bottom_left,
+                ..
+            } => (top_left, bottom_left),
+            Self::NormalFn {
+                top_left,
+                bottom_left,
+            } => (top_left, bottom_left),
+            Self::Wide {
+                top_left,
+                bottom_left,
+                ..
+            } => (top_left, bottom_left),
+        };
+
+        top.eq_ignore_ascii_case(target) || bottom.eq_ignore_ascii_case(target)
+    }
+
+    fn render(&self, _area: Rect, theme: &Theme, highlighted: bool) -> Paragraph<'static> {
         let text = match self {
             Self::Normal {
                 bottom_left,
@@ -94,18 +118,212 @@ impl Key {
             }
         };
 
+        let (style, border_style) = if highlighted {
+            (
+                Style::default()
+                    .fg(theme.colors.selection_fg)
+                    .bg(theme.colors.selection_bg)
+                    .add_modifier(Modifier::BOLD),
+                Style::default().fg(theme.colors.accent),
+            )
+        } else {
+            (
+                Style::default().fg(theme.colors.text),
+                Style::default().fg(theme.colors.border),
+            )
+        };
+
         Paragraph::new(text)
             .alignment(Alignment::Center)
-            .style(Style::default().fg(theme.colors.text))
+            .style(style)
             .block(
                 Block::bordered()
-                    .border_style(Style::default().fg(theme.colors.border))
+                    .border_style(border_style)
                     .padding(Padding::horizontal(1)),
             )
     }
 }
 
-pub fn render_keyboard(frame: &mut Frame, area: Rect, rows: &[Vec<Key>], theme: &Theme) {
+/// Finds the (row, column) of the first key whose label matches `target`,
+/// e.g. the label produced by [`highlight_label`] for a pressed key.
+pub fn find_highlight(rows: &[Vec<Key>], target: &str) -> Option<(usize, usize)> {
+    rows.iter().enumerate().find_map(|(row_index, row)| {
+        row.iter()
+            .position(|key| key.matches_label(target))
+            .map(|key_index| (row_index, key_index))
+    })
+}
+
+/// Maps a pressed [`CtKeyCode`] to the label text used on the virtual
+/// keyboard (see `en_row*` below), so the matching key can be highlighted.
+/// Returns `None` for keys that aren't represented on the virtual keyboard
+/// (arrows, function keys, media/XF86 keys, etc.) — those still get a full
+/// info readout, just no highlight.
+pub fn highlight_label(code: CtKeyCode) -> Option<String> {
+    let label = match code {
+        CtKeyCode::Char(' ') => "spacebar".to_string(),
+        CtKeyCode::Char(c) => c.to_string(),
+        CtKeyCode::Backspace => "backspace".to_string(),
+        CtKeyCode::Tab => "tab".to_string(),
+        CtKeyCode::Enter => "enter".to_string(),
+        CtKeyCode::CapsLock => "caps lock".to_string(),
+        CtKeyCode::Modifier(ModifierKeyCode::LeftShift) => "l-shift".to_string(),
+        CtKeyCode::Modifier(ModifierKeyCode::RightShift) => "r-shift".to_string(),
+        CtKeyCode::Modifier(ModifierKeyCode::LeftControl)
+        | CtKeyCode::Modifier(ModifierKeyCode::RightControl) => "ctr".to_string(),
+        CtKeyCode::Modifier(ModifierKeyCode::LeftAlt)
+        | CtKeyCode::Modifier(ModifierKeyCode::RightAlt) => "alt".to_string(),
+        CtKeyCode::Modifier(ModifierKeyCode::LeftSuper)
+        | CtKeyCode::Modifier(ModifierKeyCode::RightSuper) => "sup".to_string(),
+        _ => return None,
+    };
+
+    Some(label)
+}
+
+/// Everything the "xev-style" key preview panel needs to show for a single
+/// key event: a symbolic name, its numeric keysym, its Unicode codepoint
+/// (if any), and the raw modifier state.
+#[derive(Debug, Clone)]
+pub struct KeyPressInfo {
+    pub keycode_label: String,
+    pub keysym: Option<u32>,
+    pub unicode: Option<u32>,
+    pub state: u8,
+}
+
+impl KeyPressInfo {
+    pub fn keysym_display(&self) -> String {
+        self.keysym
+            .map(|sym| sym.to_string())
+            .unwrap_or_else(|| "--".to_string())
+    }
+
+    pub fn unicode_display(&self) -> String {
+        match self.unicode {
+            Some(cp) => format!("U+{cp:04X}"),
+            None => "--".to_string(),
+        }
+    }
+
+    pub fn state_display(&self) -> String {
+        self.state.to_string()
+    }
+}
+
+fn xf86_name_for_media(media: crossterm::event::MediaKeyCode) -> Option<&'static str> {
+    use crossterm::event::MediaKeyCode::*;
+
+    Some(match media {
+        Play | PlayPause => "XF86AudioPlay",
+        Pause => "XF86AudioPause",
+        Reverse => "XF86AudioReverse",
+        Stop => "XF86AudioStop",
+        FastForward => "XF86AudioForward",
+        Rewind => "XF86AudioRewind",
+        TrackNext => "XF86AudioNext",
+        TrackPrevious => "XF86AudioPrev",
+        Record => "XF86AudioRecord",
+        LowerVolume => "XF86AudioLowerVolume",
+        RaiseVolume => "XF86AudioRaiseVolume",
+        MuteVolume => "XF86AudioMute",
+    })
+}
+
+fn xf86_name_for_modifier(modifier: ModifierKeyCode) -> Option<&'static str> {
+    use ModifierKeyCode::*;
+
+    Some(match modifier {
+        LeftShift | RightShift => "Shift_L",
+        LeftControl | RightControl => "Control_L",
+        LeftAlt | RightAlt => "Alt_L",
+        LeftSuper | RightSuper => "Super_L",
+        LeftHyper | RightHyper => "Hyper_L",
+        LeftMeta | RightMeta => "Meta_L",
+        _ => return None,
+    })
+}
+
+/// Resolves a crossterm key code to the xkb keysym it (most likely)
+/// corresponds to. For printable characters this uses the direct
+/// Unicode <-> keysym mapping; for named keys (Enter, arrows, media keys,
+/// ...) it goes through the X11 keysym name.
+fn resolve_keysym(code: CtKeyCode) -> Option<xkb::Keysym> {
+    if let CtKeyCode::Char(c) = code {
+        let sym = xkb::utf32_to_keysym(c as u32);
+        return (sym.raw() != 0).then_some(sym);
+    }
+
+    let name: String = match code {
+        CtKeyCode::Backspace => "BackSpace".to_string(),
+        CtKeyCode::Enter => "Return".to_string(),
+        CtKeyCode::Left => "Left".to_string(),
+        CtKeyCode::Right => "Right".to_string(),
+        CtKeyCode::Up => "Up".to_string(),
+        CtKeyCode::Down => "Down".to_string(),
+        CtKeyCode::Home => "Home".to_string(),
+        CtKeyCode::End => "End".to_string(),
+        CtKeyCode::PageUp => "Prior".to_string(),
+        CtKeyCode::PageDown => "Next".to_string(),
+        CtKeyCode::Tab => "Tab".to_string(),
+        CtKeyCode::BackTab => "ISO_Left_Tab".to_string(),
+        CtKeyCode::Delete => "Delete".to_string(),
+        CtKeyCode::Insert => "Insert".to_string(),
+        CtKeyCode::Esc => "Escape".to_string(),
+        CtKeyCode::CapsLock => "Caps_Lock".to_string(),
+        CtKeyCode::ScrollLock => "Scroll_Lock".to_string(),
+        CtKeyCode::NumLock => "Num_Lock".to_string(),
+        CtKeyCode::PrintScreen => "Print".to_string(),
+        CtKeyCode::Pause => "Pause".to_string(),
+        CtKeyCode::Menu => "Menu".to_string(),
+        CtKeyCode::KeypadBegin => "KP_Begin".to_string(),
+        CtKeyCode::F(n) => format!("F{n}"),
+        CtKeyCode::Media(media) => xf86_name_for_media(media)?.to_string(),
+        CtKeyCode::Modifier(modifier) => xf86_name_for_modifier(modifier)?.to_string(),
+        _ => return None,
+    };
+
+    let sym = xkb::keysym_from_name(&name, xkb::KEYSYM_NO_FLAGS);
+    (sym.raw() != 0).then_some(sym)
+}
+
+/// Builds the full key-preview readout for a pressed key, in the same
+/// spirit as `xev`: a symbolic name, the numeric keysym, its Unicode
+/// codepoint if it has one, and the modifier state mask.
+pub fn describe_key_event(event: &KeyEvent) -> KeyPressInfo {
+    let keysym = resolve_keysym(event.code);
+
+    let keycode_label = match keysym {
+        Some(sym) => {
+            let name = xkb::keysym_get_name(sym);
+            if name.is_empty() {
+                format!("{:?}", event.code)
+            } else {
+                name
+            }
+        }
+        None => format!("{:?}", event.code),
+    };
+
+    let unicode = keysym
+        .map(xkb::keysym_to_utf32)
+        .filter(|codepoint| *codepoint != 0);
+
+    KeyPressInfo {
+        keycode_label,
+        keysym: keysym.map(|sym| sym.raw()),
+        unicode,
+        state: event.modifiers.bits(),
+    }
+}
+
+pub fn render_keyboard(
+    frame: &mut Frame,
+    area: Rect,
+    rows: &[Vec<Key>],
+    theme: &Theme,
+    highlighted: Option<(usize, usize)>,
+) {
     let row_height = 4;
 
     let keyboard_width = rows
@@ -171,8 +389,9 @@ pub fn render_keyboard(frame: &mut Frame, area: Rect, rows: &[Vec<Key>], theme: 
             }
 
             let key_area = key_areas[key_index];
+            let is_highlighted = highlighted == Some((row_index, key_index));
 
-            frame.render_widget(key.render(key_area, theme), key_area);
+            frame.render_widget(key.render(key_area, theme, is_highlighted), key_area);
         }
     }
 }
