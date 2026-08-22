@@ -36,9 +36,6 @@ fn select_prev_layout(app: &mut App) {
     app.layout_list_state.select(Some(prev_pos));
 }
 
-/// Re-sync selection/list state after the search query changes: keep the
-/// currently selected layout selected if it's still visible, otherwise
-/// jump to the first visible result.
 fn refresh_filtered_selection(app: &mut App) {
     let indices = app.filtered_layout_indices();
 
@@ -72,9 +69,6 @@ fn apply_selected_layout(app: &mut App) {
 }
 
 pub fn handle_index_input(app: &mut App, key: KeyCode) {
-    // While a `:` command is pending, only the command keys matter — this
-    // is checked first so that letters like 'q'/'s' are free to be typed
-    // into the search box the rest of the time.
     if app.command_mode {
         match key {
             KeyCode::Char('q') => {

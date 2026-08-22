@@ -1,10 +1,6 @@
 use ratatui::style::Color;
 use serde::{Deserialize, Deserializer};
 
-// ============================================================
-// Theme data model
-// ============================================================
-
 #[derive(Debug, Clone, Deserialize)]
 pub struct Theme {
     pub name: String,
@@ -55,9 +51,6 @@ pub struct ThemeColors {
 }
 
 impl Theme {
-    /// Used only if literally nothing could be loaded (no user themes, no
-    /// bundled themes parsed successfully). Keeps the UI on the terminal's
-    /// own default colors rather than crashing.
     pub fn fallback() -> Self {
         Self {
             name: "Default".to_string(),
@@ -85,11 +78,6 @@ impl Theme {
     }
 }
 
-// ============================================================
-// Hex color parsing
-// ============================================================
-
-/// Parse a `"#RRGGBB"` (or `"RRGGBB"`) string into a ratatui `Color`.
 pub fn parse_hex_color(raw: &str) -> Option<Color> {
     let hex = raw.trim().trim_start_matches('#');
 
@@ -114,14 +102,6 @@ where
         .ok_or_else(|| serde::de::Error::custom(format!("invalid hex color: {raw:?}")))
 }
 
-// ============================================================
-// Theme discovery
-// ============================================================
-
-/// Themes bundled with caiman itself, embedded at compile time. These are
-/// written out to `~/.config/caiman/themes/` the first time caiman runs
-/// (see `install_bundled_themes_if_missing`) and act as the fallback set
-/// if that directory is ever missing or emptied out afterwards.
 const BUNDLED_THEMES: &[(&str, &str)] = &[
     (
         "catppuccin_mocha.toml",
@@ -137,10 +117,7 @@ const BUNDLED_THEMES: &[(&str, &str)] = &[
         "melange_dark.toml",
         include_str!("../themes/melange_dark.toml"),
     ),
-    (
-        "pomboverso.toml",
-        include_str!("../themes/pomboverso.toml"),
-    ),
+    ("pomboverso.toml", include_str!("../themes/pomboverso.toml")),
     ("rama.toml", include_str!("../themes/rama.toml")),
     ("teyin.toml", include_str!("../themes/teyin.toml")),
     (
@@ -166,19 +143,11 @@ fn load_bundled_themes() -> Vec<Theme> {
         .collect()
 }
 
-/// `~/.config/caiman/themes/` — same directory `config::load_config` seeds
-/// `config.toml` into, just for theme files instead.
 fn user_themes_dir() -> Option<std::path::PathBuf> {
     let home = std::env::var_os("HOME")?;
-    Some(std::path::PathBuf::from(home).join(".config/caiman/themes"))
+    Some(std::path::PathBuf::from(home).join(".config/rama/themes"))
 }
 
-/// Copy the bundled themes into `~/.config/caiman/themes/` the first time
-/// caiman runs and that directory doesn't exist yet — the theme
-/// counterpart to `config::load_config` seeding `config.toml` from the
-/// bundled sample. After this, the files on disk are what's actually
-/// used and editable; the embedded copies only matter as this one-time
-/// seed and as an ultimate fallback if the directory is ever emptied out.
 pub fn install_bundled_themes_if_missing() {
     let Some(dir) = user_themes_dir() else {
         return;
@@ -229,14 +198,6 @@ fn load_user_themes() -> Vec<Theme> {
         .collect()
 }
 
-/// Discover the available themes.
-///
-/// Reads from `~/.config/caiman/themes/`, which `install_bundled_themes_if_missing`
-/// seeds with the bundled themes the first time caiman runs — so in
-/// practice this is what actually gets used, and it's what the person
-/// edits/adds to. Falls back to the themes embedded in the binary directly
-/// if that directory is somehow still missing or was emptied out, so the
-/// theme picker always has something to show.
 pub fn discover_themes() -> Vec<Theme> {
     let mut themes = load_user_themes();
 
@@ -262,9 +223,6 @@ fn slugify(name: &str) -> String {
         .collect()
 }
 
-/// Find the index of the theme matching a config value like
-/// `"catppuccin-mocha"` against a theme named `"Catppuccin Mocha"`
-/// (case/whitespace-insensitive). Falls back to `0` if nothing matches.
 pub fn find_theme_index(themes: &[Theme], wanted: &str) -> usize {
     let wanted = slugify(wanted);
     themes

@@ -1,5 +1,3 @@
-/// Truncate a string to fit within `max_width` display columns,
-/// appending an ellipsis ("…") when it doesn't fit.
 pub fn truncate_label(label: &str, max_width: u16) -> String {
     let max_width = max_width as usize;
 

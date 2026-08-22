@@ -25,13 +25,12 @@ pub fn draw_index(frame: &mut Frame, app: &mut App) {
     let theme = app.theme().clone();
     let full_area = frame.area();
 
-    // Paint the theme's background/text across the whole frame first;
-    // everything drawn afterwards only overrides the specific style bits
-    // it cares about (border color, highlight, etc.), so the base color
-    // shows through everywhere else.
     frame.render_widget(
-        Block::default()
-            .style(Style::default().bg(theme.colors.background).fg(theme.colors.text)),
+        Block::default().style(
+            Style::default()
+                .bg(theme.colors.background)
+                .fg(theme.colors.text),
+        ),
         full_area,
     );
 
@@ -53,9 +52,6 @@ pub fn draw_index(frame: &mut Frame, app: &mut App) {
         .constraints([Constraint::Length(28), Constraint::Fill(1)])
         .split(vertical[0]);
 
-    // The whole left-hand panel (search bar + list) lives inside one
-    // "switch layout" block, so we draw the block once and split its
-    // inner area ourselves rather than giving the list its own border.
     let switch_block = Block::bordered()
         .title(" switch layout ")
         .title_style(Style::default().fg(theme.colors.header))
@@ -67,9 +63,9 @@ pub fn draw_index(frame: &mut Frame, app: &mut App) {
     let switch_layout = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(1), // search input
-            Constraint::Length(1), // divider
-            Constraint::Fill(1),   // filtered list
+            Constraint::Length(1),
+            Constraint::Length(1),
+            Constraint::Fill(1),
         ])
         .split(switch_inner);
 
@@ -85,8 +81,6 @@ pub fn draw_index(frame: &mut Frame, app: &mut App) {
     };
     frame.render_widget(search_text, search_area);
 
-    // Put the terminal's real cursor at the end of the typed query so it's
-    // obvious this box is what's receiving keystrokes.
     frame.set_cursor_position((
         search_area.x + 1 + app.search_query.chars().count() as u16,
         search_area.y,
@@ -96,9 +90,6 @@ pub fn draw_index(frame: &mut Frame, app: &mut App) {
         .style(Style::default().fg(theme.colors.shell));
     frame.render_widget(divider, divider_area);
 
-    // Available width for the label text itself, after accounting for the
-    // "● " marker (2). The block's border/padding is already excluded
-    // since `list_area` comes from `switch_block.inner(..)`.
     let label_width = list_area.width.saturating_sub(2);
 
     let filtered_indices = app.filtered_layout_indices();

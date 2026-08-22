@@ -177,10 +177,6 @@ pub fn render_keyboard(frame: &mut Frame, area: Rect, rows: &[Vec<Key>], theme: 
     }
 }
 
-// ============================================================
-// US keyboard layout (fallback / default row shapes)
-// ============================================================
-
 fn en_row1() -> Vec<Key> {
     vec![
         Key::new("~", "`", "~", "`"),
@@ -265,33 +261,19 @@ fn en_row5() -> Vec<Key> {
     ]
 }
 
-/// The default (US QWERTY) row shapes, used as a fallback when a layout's
-/// actual keysyms can't be loaded from the system.
 pub fn en_rows() -> Vec<Vec<Key>> {
     vec![en_row1(), en_row2(), en_row3(), en_row4(), en_row5()]
 }
-
-// ============================================================
-// Layout information
-// ============================================================
 
 pub struct LayoutInfo {
     pub id: String,
     pub name: String,
 
-    // Actual XKB identifiers.
     pub layout: String,
     pub variant: String,
 
-    // The actual keys for this layout, loaded from the system via the
-    // `xkbcli` command-line tool. Falls back to `en_rows()` if loading
-    // fails.
     pub rows: Vec<Vec<Key>>,
 }
-
-// ============================================================
-// XKB layout discovery
-// ============================================================
 
 #[derive(Debug, Deserialize)]
 struct XkbData {
@@ -306,20 +288,11 @@ struct XkbLayout {
     description: String,
 }
 
-/// Discover the layouts installed on the system and, for each one, its
-/// actual key mappings — both entirely via OS commands (`xkbcli`), no
-/// linked keyboard-handling library required.
-///
-/// `list_layout_cmd` is the user-configurable command (see
-/// `Config::list_layout`, defaults to `"xkbcli list"`) used to enumerate
-/// installed layouts.
 pub fn discover_layouts(list_layout_cmd: &str) -> Vec<LayoutInfo> {
     match get_layouts(list_layout_cmd) {
         Ok(mut layouts) => {
             println!("{} layouts", layouts.len());
 
-            // Sort by language/group first, then layout, then variant.
-            // This keeps e.g. en_* layouts together.
             layouts.sort_by(|a, b| {
                 a.brief
                     .cmp(&b.brief)
@@ -389,9 +362,6 @@ fn get_layouts(list_layout_cmd: &str) -> Result<Vec<XkbLayout>, Box<dyn std::err
     Ok(data.layouts)
 }
 
-/// Split a user-configured command string like `"xkbcli list"` into a
-/// program name and its arguments. Falls back to `fallback_program`
-/// `fallback_args` if the configured command is blank.
 fn split_command(
     cmd: &str,
     fallback_program: &str,
@@ -408,18 +378,6 @@ fn split_command(
     }
 }
 
-// ============================================================
-// XKB keymap loading
-// ============================================================
-
-/// Compile an XKB layout via `xkbcli compile-keymap` and read back the
-/// resulting keymap as text.
-///
-/// This does NOT change the system keyboard layout. It just asks
-/// libxkbcommon (through the `xkbcli` command, so per-layout keymap
-/// discovery doesn't need a system compositor connection) to resolve the
-/// given layout/variant into a full keymap, which we then parse ourselves
-/// to find out what each key actually produces.
 fn compile_keymap_text(layout: &str, variant: &str) -> Result<String, Box<dyn std::error::Error>> {
     let mut command = Command::new("xkbcli");
     command.args([
@@ -449,18 +407,12 @@ fn compile_keymap_text(layout: &str, variant: &str) -> Result<String, Box<dyn st
     Ok(String::from_utf8_lossy(&output.stdout).into_owned())
 }
 
-/// Compile a layout and translate it straight into visual keyboard rows.
 fn compile_rows(layout: &str, variant: &str) -> Result<Vec<Vec<Key>>, Box<dyn std::error::Error>> {
     let compiled = compile_keymap_text(layout, variant)?;
     let levels = parse_symbol_levels(&compiled);
     Ok(build_rows(&levels))
 }
 
-/// Parse every `key <NAME> { ... [ sym1, sym2, ... ] ... };` statement out
-/// of a compiled XKB keymap's text (as printed by `xkbcli compile-keymap`),
-/// keeping the *last* definition of each key name — later statements
-/// (e.g. a layout's own overrides) win, matching how XKB itself resolves
-/// them.
 fn parse_symbol_levels(compiled: &str) -> HashMap<String, Vec<String>> {
     let mut levels: HashMap<String, Vec<String>> = HashMap::new();
     let mut search_from = 0;
@@ -474,8 +426,6 @@ fn parse_symbol_levels(compiled: &str) -> HashMap<String, Vec<String>> {
         let name = compiled[name_start..name_start + name_end_rel].to_string();
         let after_name = name_start + name_end_rel + 1;
 
-        // Bound the search for this key's symbol list to its own
-        // statement, so we don't wander into the next key's brackets.
         let Some(block_end_rel) = compiled[after_name..].find("};") else {
             break;
         };
@@ -491,9 +441,6 @@ fn parse_symbol_levels(compiled: &str) -> HashMap<String, Vec<String>> {
     levels
 }
 
-/// Within a single `key <NAME> { ... }` body, find the symbol list — the
-/// first `[ ... ]` group whose opening bracket directly follows `=` or
-/// `{` (skipping index brackets like the `[group1]` in `type[group1] =`).
 fn extract_symbol_list(block: &str) -> Option<Vec<String>> {
     let chars: Vec<char> = block.chars().collect();
     let mut idx = 0;
@@ -526,21 +473,6 @@ fn extract_symbol_list(block: &str) -> Option<Vec<String>> {
     None
 }
 
-// ============================================================
-// Keysym name -> display text
-// ============================================================
-
-/// Translate an XKB keysym *name* (as found in a compiled keymap's
-/// `xkb_symbols` section, e.g. "at", "eacute", "Cyrillic_a", "U2018")
-/// into the character it represents on screen.
-///
-/// This defers to libxkbcommon's own name table (`keysym_from_name` +
-/// `keysym_to_utf8`) rather than a hand-maintained one, so it's correct
-/// for every script the library knows about (Cyrillic, Greek, Arabic,
-/// CJK, dead keys, ...), not just the common Latin-1 set. Falls back to
-/// showing the raw keysym name for the rare keysym that has no direct
-/// Unicode representation (e.g. purely functional keys that end up here
-/// by mistake) — the same fallback the original keymap-based code used.
 fn keysym_name_to_display(name: &str) -> String {
     let name = name.trim();
 
@@ -562,26 +494,6 @@ fn keysym_name_to_display(name: &str) -> String {
     name.to_string()
 }
 
-// ============================================================
-// Applying a layout to the running system
-// ============================================================
-
-/// Actually switch the system's active keyboard layout.
-///
-/// This targets Sway, via its IPC (`swaymsg`, or whatever
-/// `Config::switch_layout` is set to), which is the mechanism Sway itself
-/// uses under the hood — there's no X11 involved, so tools like
-/// `setxkbmap` don't apply here. `type:keyboard` targets every connected
-/// keyboard rather than a single device id, since most setups only have
-/// one and it saves having to look an id up via `swaymsg -t get_inputs`
-/// first.
-///
-/// `switch_layout_cmd` is the user-configurable program name (see
-/// `Config::switch_layout`, defaults to `"swaymsg"`) — the arguments
-/// themselves are still built here, since they're compositor-specific.
-/// (If you switch compositors later — Hyprland, KDE, GNOME, etc. — this
-/// is the one place that needs to change; each has its own equivalent of
-/// this call.)
 pub fn apply_layout(
     switch_layout_cmd: &str,
     layout: &str,
@@ -595,12 +507,6 @@ pub fn apply_layout(
 
     run_switch_command(program, &["input", "type:keyboard", "xkb_layout", layout])?;
 
-    // Always set the variant explicitly (even to ""), so switching from a
-    // layout with a variant back to the plain layout clears the old one
-    // instead of leaving it stuck. When empty, we have to hand swaymsg a
-    // literal `""` token — an empty Rust string argument just disappears
-    // when swaymsg joins argv into the command text, turning
-    // `xkb_variant ""` into `xkb_variant` (missing its value entirely).
     let variant_arg = if variant.is_empty() { "\"\"" } else { variant };
     run_switch_command(
         program,
@@ -616,9 +522,6 @@ fn run_switch_command(program: &str, args: &[&str]) -> Result<(), Box<dyn std::e
     let stdout = String::from_utf8_lossy(&output.stdout);
     let stderr = String::from_utf8_lossy(&output.stderr);
 
-    // swaymsg exits 0 even when sway rejects the command outright; the
-    // actual reason (if any) shows up in the JSON it prints to stdout, so
-    // we have to check that too, not just the exit status.
     let ipc_rejected =
         stdout.contains("\"success\":false") || stdout.contains("\"success\": false");
 
@@ -645,14 +548,6 @@ fn run_switch_command(program: &str, args: &[&str]) -> Result<(), Box<dyn std::e
     Ok(())
 }
 
-// ============================================================
-// Translating a compiled keymap into the visual keyboard rows
-// ============================================================
-
-/// Canonical XKB key names (as assigned by the "evdev" rules) for the
-/// alphanumeric/symbol keys, laid out to match the physical shape of
-/// `en_row1()`..`en_row5()`. `None` marks a key that keeps its static
-/// label (backspace, tab, enter, shift, ctrl, etc.) regardless of layout.
 const ROW1_NAMES: [Option<&str>; 13] = [
     Some("TLDE"),
     Some("AE01"),
@@ -712,10 +607,6 @@ const ROW4_NAMES: [Option<&str>; 10] = [
     Some("AB10"),
 ];
 
-/// Build a `Key::Normal` for the given canonical XKB key name, using the
-/// unshifted/shifted symbol levels from `levels`. Falls back to
-/// `fallback` (the US QWERTY key at the same position) if the key can't
-/// be found or the layout doesn't define it.
 fn translated_key(levels: &HashMap<String, Vec<String>>, name: &str, fallback: Key) -> Key {
     let Some(syms) = levels.get(name) else {
         return fallback;
@@ -759,10 +650,6 @@ fn translate_row(
         .collect()
 }
 
-/// Build the visual keyboard rows for a compiled layout, translating every
-/// alphanumeric/symbol key to what that layout actually produces while
-/// keeping function/modifier keys (backspace, tab, enter, shift, etc.)
-/// labeled the same regardless of layout.
 fn build_rows(levels: &HashMap<String, Vec<String>>) -> Vec<Vec<Key>> {
     let row1 = en_row1();
     let row1 = {
@@ -819,8 +706,6 @@ fn build_rows(levels: &HashMap<String, Vec<String>>) -> Vec<Vec<Key>> {
         translated
     };
 
-    // The bottom row (ctrl/super/alt/spacebar) has no printable keys, so it
-    // stays the same regardless of layout.
     let row5 = en_row5();
 
     vec![row1, row2, row3, row4, row5]

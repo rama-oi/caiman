@@ -38,18 +38,12 @@ pub struct App {
 }
 
 impl App {
-    /// The currently active theme. `themes` always has at least one entry
-    /// (see `discover_themes`), so this never has to fall back to a
-    /// hardcoded default.
     pub fn theme(&self) -> &Theme {
         self.themes
             .get(self.selected_theme)
             .unwrap_or(&self.themes[0])
     }
 
-    /// Indices into `layouts` of the layouts matching the current search
-    /// query (case-insensitive substring match against id/name/xkb layout
-    /// code). Returns every index when the query is empty.
     pub fn filtered_layout_indices(&self) -> Vec<usize> {
         let query = self.search_query.trim().to_lowercase();
 

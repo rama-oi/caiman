@@ -8,7 +8,7 @@ list_layout = "xkbcli list"
 # to whatever the equivalent of `swaymsg` is on your OS.
 switch_layout = "swaymsg"
 
-# Name of a theme installed in ~/.config/caiman/themes/, or one of the
+# Name of a theme installed in ~/.config/rama/themes/, or one of the
 # themes bundled with caiman (e.g. "catppuccin-mocha", "dracula",
 # "tokyo-night").
 theme = "catppuccin-mocha"

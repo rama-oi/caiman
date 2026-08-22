@@ -32,20 +32,13 @@ impl Default for Config {
     }
 }
 
-/// The sample config shipped alongside the binary, embedded at compile
-/// time. Written out to `~/.config/caiman/config.toml` the first time
-/// caiman runs and finds no config there yet.
-const SAMPLE_CONFIG: &str = include_str!("../config.toml.sample");
+const SAMPLE_CONFIG: &str = include_str!("../caiman_config.toml.sample");
 
 fn config_path() -> Option<std::path::PathBuf> {
     let home = std::env::var_os("HOME")?;
-    Some(std::path::PathBuf::from(home).join(".config/caiman/config.toml"))
+    Some(std::path::PathBuf::from(home).join(".config/rama/caiman_config.toml"))
 }
 
-/// Load `~/.config/caiman/config.toml`, creating it from the bundled
-/// sample first if it doesn't exist yet. Falls back to `Config::default()`
-/// if `$HOME` isn't set, or if the file can't be read/parsed for some
-/// other reason — caiman should still start either way.
 pub fn load_config() -> Config {
     let Some(path) = config_path() else {
         return Config::default();
