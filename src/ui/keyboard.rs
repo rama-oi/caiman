@@ -65,8 +65,6 @@ impl Key {
         }
     }
 
-    /// Whether this key's printed label (either shifted or unshifted face)
-    /// matches the given target, case-insensitively.
     fn matches_label(&self, target: &str) -> bool {
         let (top, bottom) = match self {
             Self::Normal {
@@ -121,10 +119,9 @@ impl Key {
         let (style, border_style) = if highlighted {
             (
                 Style::default()
-                    .fg(theme.colors.selection_fg)
-                    .bg(theme.colors.selection_bg)
+                    .fg(theme.colors.selection_bg)
                     .add_modifier(Modifier::BOLD),
-                Style::default().fg(theme.colors.accent),
+                Style::default().fg(theme.colors.selection_bg),
             )
         } else {
             (
@@ -144,8 +141,6 @@ impl Key {
     }
 }
 
-/// Finds the (row, column) of the first key whose label matches `target`,
-/// e.g. the label produced by [`highlight_label`] for a pressed key.
 pub fn find_highlight(rows: &[Vec<Key>], target: &str) -> Option<(usize, usize)> {
     rows.iter().enumerate().find_map(|(row_index, row)| {
         row.iter()
@@ -154,11 +149,6 @@ pub fn find_highlight(rows: &[Vec<Key>], target: &str) -> Option<(usize, usize)>
     })
 }
 
-/// Maps a pressed [`CtKeyCode`] to the label text used on the virtual
-/// keyboard (see `en_row*` below), so the matching key can be highlighted.
-/// Returns `None` for keys that aren't represented on the virtual keyboard
-/// (arrows, function keys, media/XF86 keys, etc.) — those still get a full
-/// info readout, just no highlight.
 pub fn highlight_label(code: CtKeyCode) -> Option<String> {
     let label = match code {
         CtKeyCode::Char(' ') => "spacebar".to_string(),
@@ -181,9 +171,6 @@ pub fn highlight_label(code: CtKeyCode) -> Option<String> {
     Some(label)
 }
 
-/// Everything the "xev-style" key preview panel needs to show for a single
-/// key event: a symbolic name, its numeric keysym, its Unicode codepoint
-/// (if any), and the raw modifier state.
 #[derive(Debug, Clone)]
 pub struct KeyPressInfo {
     pub keycode_label: String,
@@ -244,10 +231,6 @@ fn xf86_name_for_modifier(modifier: ModifierKeyCode) -> Option<&'static str> {
     })
 }
 
-/// Resolves a crossterm key code to the xkb keysym it (most likely)
-/// corresponds to. For printable characters this uses the direct
-/// Unicode <-> keysym mapping; for named keys (Enter, arrows, media keys,
-/// ...) it goes through the X11 keysym name.
 fn resolve_keysym(code: CtKeyCode) -> Option<xkb::Keysym> {
     if let CtKeyCode::Char(c) = code {
         let sym = xkb::utf32_to_keysym(c as u32);
@@ -287,9 +270,6 @@ fn resolve_keysym(code: CtKeyCode) -> Option<xkb::Keysym> {
     (sym.raw() != 0).then_some(sym)
 }
 
-/// Builds the full key-preview readout for a pressed key, in the same
-/// spirit as `xev`: a symbolic name, the numeric keysym, its Unicode
-/// codepoint if it has one, and the modifier state mask.
 pub fn describe_key_event(event: &KeyEvent) -> KeyPressInfo {
     let keysym = resolve_keysym(event.code);
 
@@ -711,38 +691,6 @@ fn keysym_name_to_display(name: &str) -> String {
     }
 
     name.to_string()
-}
-
-fn run_switch_command(program: &str, args: &[&str]) -> Result<(), Box<dyn std::error::Error>> {
-    let output = Command::new(program).args(args).output()?;
-
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let stderr = String::from_utf8_lossy(&output.stderr);
-
-    let ipc_rejected =
-        stdout.contains("\"success\":false") || stdout.contains("\"success\": false");
-
-    if !output.status.success() || ipc_rejected {
-        let mut message = String::new();
-        if !stderr.trim().is_empty() {
-            message.push_str(stderr.trim());
-        }
-        if !stdout.trim().is_empty() {
-            if !message.is_empty() {
-                message.push_str(" | ");
-            }
-            message.push_str(stdout.trim());
-        }
-        if message.is_empty() {
-            message.push_str(&format!(
-                "{program} exited with an error but printed nothing"
-            ));
-        }
-
-        return Err(format!("{program} failed: {message}").into());
-    }
-
-    Ok(())
 }
 
 const ROW1_NAMES: [Option<&str>; 13] = [
