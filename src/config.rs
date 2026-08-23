@@ -4,18 +4,12 @@ use serde::Deserialize;
 pub struct Config {
     #[serde(default = "default_list_layout")]
     pub list_layout: String,
-    #[serde(default = "default_switch_layout")]
-    pub switch_layout: String,
     #[serde(default = "default_theme")]
     pub theme: String,
 }
 
 fn default_list_layout() -> String {
     "xkbcli list".to_string()
-}
-
-fn default_switch_layout() -> String {
-    "swaymsg".to_string()
 }
 
 fn default_theme() -> String {
@@ -26,7 +20,6 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             list_layout: default_list_layout(),
-            switch_layout: default_switch_layout(),
             theme: default_theme(),
         }
     }

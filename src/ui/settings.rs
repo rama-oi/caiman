@@ -57,7 +57,6 @@ pub fn draw_settings(frame: &mut Frame, app: &mut App) {
 
     let items = [
         format!("List Layouts\n{}", app.config.list_layout),
-        format!("Switch Layout\n{}", app.config.switch_layout),
         format!("Switch Theme\n{}", theme.name),
         "About Caiman".to_string(),
     ];

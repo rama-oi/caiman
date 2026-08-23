@@ -53,7 +53,6 @@ pub fn draw_index(frame: &mut Frame, app: &mut App) {
         .split(vertical[0]);
 
     let switch_block = Block::bordered()
-        .title(" switch layout ")
         .title_style(Style::default().fg(theme.colors.header))
         .border_style(Style::default().fg(theme.colors.border))
         .padding(Padding::horizontal(1));
@@ -121,7 +120,6 @@ pub fn draw_index(frame: &mut Frame, app: &mut App) {
     frame.render_stateful_widget(layout_list, list_area, &mut app.layout_list_state);
 
     let keyboard_block = Block::bordered()
-        .title(" current layout ")
         .title_style(Style::default().fg(theme.colors.header))
         .border_style(Style::default().fg(theme.colors.border));
 
@@ -145,7 +143,6 @@ pub fn draw_index(frame: &mut Frame, app: &mut App) {
     );
 
     let preview_block = Block::bordered()
-        .title(" key preview ")
         .title_style(Style::default().fg(theme.colors.header))
         .border_style(Style::default().fg(theme.colors.border))
         .padding(Padding::horizontal(1));
@@ -209,7 +206,7 @@ pub fn draw_index(frame: &mut Frame, app: &mut App) {
             let status_text = app
                 .status_message
                 .clone()
-                .unwrap_or_else(|| "press <space> to apply the selected layout".to_string());
+                .unwrap_or_else(|| "press a key to see information".to_string());
 
             frame.render_widget(
                 Paragraph::new(status_text).style(Style::default().fg(theme.colors.text)),
