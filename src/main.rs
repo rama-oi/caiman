@@ -6,7 +6,13 @@ mod theme;
 mod ui;
 mod util;
 
-use std::io;
+use std::io::{self, stdout};
+
+use crossterm::event::{
+    KeyboardEnhancementFlags, PopKeyboardEnhancementFlags, PushKeyboardEnhancementFlags,
+};
+use crossterm::execute;
+use crossterm::terminal::supports_keyboard_enhancement;
 
 fn main() -> io::Result<()> {
     if handle_cli_flags() {
@@ -15,11 +21,26 @@ fn main() -> io::Result<()> {
 
     let mut terminal = ratatui::init();
 
-    app::run(&mut terminal)?;
+    let enhancement_enabled = supports_keyboard_enhancement().unwrap_or(false);
+    if enhancement_enabled {
+        let _ = execute!(
+            stdout(),
+            PushKeyboardEnhancementFlags(
+                KeyboardEnhancementFlags::DISAMBIGUATE_ESCAPE_CODES
+                    | KeyboardEnhancementFlags::REPORT_ALL_KEYS_AS_ESCAPE_CODES
+            )
+        );
+    }
+
+    let result = app::run(&mut terminal);
+
+    if enhancement_enabled {
+        let _ = execute!(stdout(), PopKeyboardEnhancementFlags);
+    }
 
     ratatui::restore();
 
-    Ok(())
+    result
 }
 
 fn handle_cli_flags() -> bool {

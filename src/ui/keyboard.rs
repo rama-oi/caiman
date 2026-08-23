@@ -25,6 +25,7 @@ pub enum Key {
     NormalFn {
         bottom_left: String,
         top_left: String,
+        match_id: Option<String>,
     },
     Empty {},
     EmptyHalf {},
@@ -49,6 +50,15 @@ impl Key {
         Self::NormalFn {
             bottom_left: bottom_left.to_string(),
             top_left: top_left.to_string(),
+            match_id: None,
+        }
+    }
+
+    pub fn new_fn_id(top_left: &str, bottom_left: &str, match_id: &str) -> Self {
+        Self::NormalFn {
+            bottom_left: bottom_left.to_string(),
+            top_left: top_left.to_string(),
+            match_id: Some(match_id.to_string()),
         }
     }
 
@@ -92,7 +102,13 @@ impl Key {
             Self::NormalFn {
                 top_left,
                 bottom_left,
-            } => top_left.eq_ignore_ascii_case(target) || bottom_left.eq_ignore_ascii_case(target),
+                match_id,
+            } => match match_id {
+                Some(id) => id.eq_ignore_ascii_case(target),
+                None => {
+                    top_left.eq_ignore_ascii_case(target) || bottom_left.eq_ignore_ascii_case(target)
+                }
+            },
 
             Self::Wide {
                 top_left,
@@ -123,6 +139,7 @@ impl Key {
             Self::NormalFn {
                 bottom_left,
                 top_left,
+                ..
             } => {
                 format!("{}\n{}", top_left, bottom_left)
             }
@@ -207,14 +224,19 @@ pub fn highlight_label(code: CtKeyCode) -> Option<String> {
         CtKeyCode::Modifier(ModifierKeyCode::LeftShift) => "l-shift".to_string(),
         CtKeyCode::Modifier(ModifierKeyCode::RightShift) => "r-shift".to_string(),
 
-        CtKeyCode::Modifier(ModifierKeyCode::LeftControl) => "ctrl".to_string(),
-        CtKeyCode::Modifier(ModifierKeyCode::RightControl) => "ctrl".to_string(),
+        CtKeyCode::Modifier(ModifierKeyCode::LeftControl) => "l-ctrl".to_string(),
+        CtKeyCode::Modifier(ModifierKeyCode::RightControl) => "r-ctrl".to_string(),
 
-        CtKeyCode::Modifier(ModifierKeyCode::LeftAlt) => "alt".to_string(),
-        CtKeyCode::Modifier(ModifierKeyCode::RightAlt) => "alt".to_string(),
+        CtKeyCode::Modifier(ModifierKeyCode::LeftAlt) => "l-alt".to_string(),
+        CtKeyCode::Modifier(ModifierKeyCode::RightAlt) => "r-alt".to_string(),
+        CtKeyCode::Modifier(ModifierKeyCode::IsoLevel3Shift) => "r-alt".to_string(),
 
-        CtKeyCode::Modifier(ModifierKeyCode::LeftSuper) => "sup".to_string(),
-        CtKeyCode::Modifier(ModifierKeyCode::RightSuper) => "sup".to_string(),
+        // No dedicated key on the drawn layout for level 5 shift; skip
+        // rather than guess at the wrong key.
+        CtKeyCode::Modifier(ModifierKeyCode::IsoLevel5Shift) => return None,
+
+        CtKeyCode::Modifier(ModifierKeyCode::LeftSuper) => "super".to_string(),
+        CtKeyCode::Modifier(ModifierKeyCode::RightSuper) => "super".to_string(),
 
         CtKeyCode::Media(media) => xf86_name_for_media(media)?.to_string(),
 
@@ -274,12 +296,20 @@ fn xf86_name_for_modifier(modifier: ModifierKeyCode) -> Option<&'static str> {
     use ModifierKeyCode::*;
 
     Some(match modifier {
-        LeftShift | RightShift => "Shift_L",
-        LeftControl | RightControl => "Control_L",
-        LeftAlt | RightAlt => "Alt_L",
-        LeftSuper | RightSuper => "Super_L",
-        LeftHyper | RightHyper => "Hyper_L",
-        LeftMeta | RightMeta => "Meta_L",
+        LeftShift => "Shift_L",
+        RightShift => "Shift_R",
+        LeftControl => "Control_L",
+        RightControl => "Control_R",
+        LeftAlt => "Alt_L",
+        RightAlt => "Alt_R",
+        LeftSuper => "Super_L",
+        RightSuper => "Super_R",
+        LeftHyper => "Hyper_L",
+        RightHyper => "Hyper_R",
+        LeftMeta => "Meta_L",
+        RightMeta => "Meta_R",
+        IsoLevel3Shift => "ISO_Level3_Shift",
+        IsoLevel5Shift => "ISO_Level5_Shift",
         _ => return None,
     })
 }
@@ -537,12 +567,12 @@ fn en_row5() -> Vec<Key> {
 
 fn en_row6() -> Vec<Key> {
     vec![
-        Key::new_fn("ctrl", ""),
+        Key::new_fn_id("ctrl", "", "l-ctrl"),
         Key::new_fn("super", ""),
-        Key::new_fn("alt", ""),
+        Key::new_fn_id("alt", "", "l-alt"),
         Key::wide("spacebar", "", 69),
-        Key::new_fn("alt", ""),
-        Key::new_fn("ctrl", ""),
+        Key::new_fn_id("alt", "", "r-alt"),
+        Key::new_fn_id("ctrl", "", "r-ctrl"),
         Key::new_empty_half(),
         Key::new_fn("←", ""),
         Key::new_fn("↓", ""),
