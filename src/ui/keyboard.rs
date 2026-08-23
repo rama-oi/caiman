@@ -26,6 +26,7 @@ pub enum Key {
         bottom_left: String,
         top_left: String,
     },
+    Empty {},
     Wide {
         bottom_left: String,
         top_left: String,
@@ -50,6 +51,10 @@ impl Key {
         }
     }
 
+    pub fn new_empty() -> Self {
+        Self::Empty {}
+    }
+
     pub fn wide(bottom_left: &str, top_left: &str, width: u16) -> Self {
         Self::Wide {
             bottom_left: bottom_left.to_string(),
@@ -62,29 +67,32 @@ impl Key {
         match self {
             Self::Normal { .. } => 6,
             Self::NormalFn { .. } => 6,
+            Self::Empty { .. } => 6,
             Self::Wide { width, .. } => *width,
         }
     }
 
     fn matches_label(&self, target: &str) -> bool {
-        let (top, bottom) = match self {
+        match self {
+            Self::Empty {} => false,
+
             Self::Normal {
                 top_left,
                 bottom_left,
                 ..
-            } => (top_left, bottom_left),
+            } => top_left.eq_ignore_ascii_case(target) || bottom_left.eq_ignore_ascii_case(target),
+
             Self::NormalFn {
                 top_left,
                 bottom_left,
-            } => (top_left, bottom_left),
+            } => top_left.eq_ignore_ascii_case(target) || bottom_left.eq_ignore_ascii_case(target),
+
             Self::Wide {
                 top_left,
                 bottom_left,
                 ..
-            } => (top_left, bottom_left),
-        };
-
-        top.eq_ignore_ascii_case(target) || bottom.eq_ignore_ascii_case(target)
+            } => top_left.eq_ignore_ascii_case(target) || bottom_left.eq_ignore_ascii_case(target),
+        }
     }
 
     fn render(&self, _area: Rect, theme: &Theme, highlighted: bool) -> Paragraph<'static> {
@@ -107,6 +115,8 @@ impl Key {
             } => {
                 format!("{}\n{}", top_left, bottom_left)
             }
+
+            Self::Empty {} => String::new(),
 
             Self::Wide {
                 bottom_left,
@@ -447,6 +457,9 @@ fn en_row4() -> Vec<Key> {
         Key::new(">", ".", ">", "."),
         Key::new("?", "/", "?", "/"),
         Key::wide("r-shift", "r-shift", 20),
+        Key::new_empty(),
+        Key::new_empty(),
+        Key::new_fn("↑", "↑"),
     ]
 }
 
@@ -458,6 +471,10 @@ fn en_row5() -> Vec<Key> {
         Key::wide("spacebar", "spacebar", 69),
         Key::new_fn("alt", "alt"),
         Key::new_fn("ctr", "ctr"),
+        Key::new_empty(),
+        Key::new_fn("←", "←"),
+        Key::new_fn("↓", "↓"),
+        Key::new_fn("→", "→"),
     ]
 }
 
