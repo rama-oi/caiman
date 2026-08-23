@@ -493,9 +493,6 @@ struct SwayInput {
     xkb_active_layout_name: Option<String>,
 }
 
-/// Finds the layout currently active on the system and compiles it into
-/// rows ready to render. Falls back to a plain "English (US)" layout if
-/// detection fails for any reason.
 pub fn detect_current_layout(config: &Config) -> LayoutInfo {
     let detected = if is_wayland_session() {
         detect_wayland_layout(&config.current_layout_wayland, &config.list_layout)

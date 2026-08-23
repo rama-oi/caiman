@@ -19,7 +19,7 @@ pub fn render_modal(frame: &mut Frame, area: Rect, title: &str, theme: &Theme) -
                 .fg(theme.colors.text)
                 .bg(theme.colors.background),
         )
-        .padding(Padding::horizontal(1));
+        .padding(Padding::uniform(1));
 
     let inner = block.inner(area);
     frame.render_widget(block, area);
