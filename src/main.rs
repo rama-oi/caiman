@@ -13,6 +13,7 @@ use crossterm::event::{
 };
 use crossterm::execute;
 use crossterm::terminal::supports_keyboard_enhancement;
+use std::process::Command;
 
 fn main() -> io::Result<()> {
     if handle_cli_flags() {
@@ -20,6 +21,10 @@ fn main() -> io::Result<()> {
     }
 
     let mut terminal = ratatui::init();
+
+    Command::new("swaymsg")
+        .args(["input", "type:keyboard", "xkb_layout", "guaraguao"])
+        .status()?;
 
     let enhancement_enabled = supports_keyboard_enhancement().unwrap_or(false);
     if enhancement_enabled {
