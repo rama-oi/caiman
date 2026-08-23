@@ -106,7 +106,8 @@ impl Key {
             } => match match_id {
                 Some(id) => id.eq_ignore_ascii_case(target),
                 None => {
-                    top_left.eq_ignore_ascii_case(target) || bottom_left.eq_ignore_ascii_case(target)
+                    top_left.eq_ignore_ascii_case(target)
+                        || bottom_left.eq_ignore_ascii_case(target)
                 }
             },
 
@@ -209,8 +210,8 @@ pub fn highlight_label(code: CtKeyCode) -> Option<String> {
 
         CtKeyCode::Home => "home".to_string(),
         CtKeyCode::End => "end".to_string(),
-        CtKeyCode::PageUp => "pag up".to_string(),
-        CtKeyCode::PageDown => "pag dow".to_string(),
+        CtKeyCode::PageUp => "pgup".to_string(),
+        CtKeyCode::PageDown => "pgdn".to_string(),
 
         CtKeyCode::Delete => "del".to_string(),
         CtKeyCode::Insert => "ins".to_string(),
@@ -495,13 +496,13 @@ fn en_row2() -> Vec<Key> {
         Key::new_empty_half(),
         Key::new_fn("ins", ""),
         Key::new_fn("home", ""),
-        Key::new_fn("pag", "up"),
+        Key::new_fn_id("pag", "up", "pgup"),
     ]
 }
 
 fn en_row3() -> Vec<Key> {
     vec![
-        Key::wide("tab", "", 13),
+        Key::wide("tab", "l-tab", 13),
         Key::new("Q", "q", "Q", "q"),
         Key::new("W", "w", "W", "w"),
         Key::new("E", "e", "E", "e"),
@@ -518,7 +519,7 @@ fn en_row3() -> Vec<Key> {
         Key::new_empty_half(),
         Key::new_fn("del", ""),
         Key::new_fn("end", ""),
-        Key::new_fn("pag", "dow"),
+        Key::new_fn_id("pag", "dow", "pgdn"),
     ]
 }
 
