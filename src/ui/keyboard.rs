@@ -27,6 +27,7 @@ pub enum Key {
         top_left: String,
     },
     Empty {},
+    EmptyHalf {},
     Wide {
         bottom_left: String,
         top_left: String,
@@ -55,6 +56,10 @@ impl Key {
         Self::Empty {}
     }
 
+    pub fn new_empty_half() -> Self {
+        Self::EmptyHalf {}
+    }
+
     pub fn wide(bottom_left: &str, top_left: &str, width: u16) -> Self {
         Self::Wide {
             bottom_left: bottom_left.to_string(),
@@ -65,9 +70,10 @@ impl Key {
 
     fn width(&self) -> u16 {
         match self {
-            Self::Normal { .. } => 6,
-            Self::NormalFn { .. } => 6,
-            Self::Empty { .. } => 6,
+            Self::Normal { .. } => 7,
+            Self::NormalFn { .. } => 7,
+            Self::Empty { .. } => 7,
+            Self::EmptyHalf { .. } => 3,
             Self::Wide { width, .. } => *width,
         }
     }
@@ -75,6 +81,7 @@ impl Key {
     fn matches_label(&self, target: &str) -> bool {
         match self {
             Self::Empty {} => false,
+            Self::EmptyHalf {} => false,
 
             Self::Normal {
                 top_left,
@@ -96,6 +103,10 @@ impl Key {
     }
 
     fn render(&self, _area: Rect, theme: &Theme, highlighted: bool) -> Paragraph<'static> {
+        if matches!(self, Self::Empty {} | Self::EmptyHalf {}) {
+            return Paragraph::new("");
+        }
+
         let text = match self {
             Self::Normal {
                 bottom_left,
@@ -116,14 +127,15 @@ impl Key {
                 format!("{}\n{}", top_left, bottom_left)
             }
 
-            Self::Empty {} => String::new(),
+            Self::Empty {} => unreachable!(),
+            Self::EmptyHalf {} => unreachable!(),
 
             Self::Wide {
                 bottom_left,
                 top_left,
                 ..
             } => {
-                format!("{}\n{}", top_left, bottom_left)
+                format!("{}\n{}", bottom_left, top_left)
             }
         };
 
@@ -317,16 +329,7 @@ pub fn render_keyboard(
 ) {
     let row_height = 4;
 
-    let keyboard_width = rows
-        .iter()
-        .map(|row| {
-            row.iter()
-                .map(|key| key.width() + 1)
-                .sum::<u16>()
-                .saturating_sub(1)
-        })
-        .max()
-        .unwrap_or(0);
+    let keyboard_width = rows.iter().map(|row| row_width(row)).max().unwrap_or(0);
 
     let keyboard_height = row_height * rows.len() as u16;
 
@@ -366,7 +369,8 @@ pub fn render_keyboard(
 
         let constraints = row
             .iter()
-            .map(|key| Constraint::Length(key.width() + 1))
+            .enumerate()
+            .map(|(i, key)| Constraint::Length(key.width()))
             .collect::<Vec<_>>();
 
         let key_areas = Layout::default()
@@ -389,6 +393,31 @@ pub fn render_keyboard(
 
 fn en_row1() -> Vec<Key> {
     vec![
+        Key::new_fn("esc", ""),
+        Key::new_empty(),
+        Key::new_fn("f1", ""),
+        Key::new_fn("f2", ""),
+        Key::new_fn("f3", ""),
+        Key::new_fn("f4", ""),
+        Key::new_empty_half(),
+        Key::new_fn("f5", ""),
+        Key::new_fn("f6", ""),
+        Key::new_fn("f7", ""),
+        Key::new_fn("f8", ""),
+        Key::new_empty_half(),
+        Key::new_fn("f9", ""),
+        Key::new_fn("f10", ""),
+        Key::new_fn("f11", ""),
+        Key::new_fn("f12", ""),
+        Key::new_empty_half(),
+        Key::new_fn("prt", "scr"),
+        Key::new_fn("scr", "lck"),
+        Key::new_fn("pau", "brk"),
+    ]
+}
+
+fn en_row2() -> Vec<Key> {
+    vec![
         Key::new("~", "`", "~", "`"),
         Key::new("!", "1", "!", "1"),
         Key::new("@", "2", "@", "2"),
@@ -402,13 +431,17 @@ fn en_row1() -> Vec<Key> {
         Key::new(")", "0", ")", "0"),
         Key::new("_", "-", "_", "-"),
         Key::new("+", "=", "+", "="),
-        Key::wide("backspace", "backspace", 13),
+        Key::wide("backspace", "", 13),
+        Key::new_empty_half(),
+        Key::new_fn("ins", ""),
+        Key::new_fn("home", ""),
+        Key::new_fn("pag", "up"),
     ]
 }
 
-fn en_row2() -> Vec<Key> {
+fn en_row3() -> Vec<Key> {
     vec![
-        Key::wide("tab", "tab", 13),
+        Key::wide("tab", "", 13),
         Key::new("Q", "q", "Q", "q"),
         Key::new("W", "w", "W", "w"),
         Key::new("E", "e", "E", "e"),
@@ -422,12 +455,16 @@ fn en_row2() -> Vec<Key> {
         Key::new("{", "[", "{", "["),
         Key::new("}", "]", "}", "]"),
         Key::new("|", "\\", "|", "\\"),
+        Key::new_empty_half(),
+        Key::new_fn("del", ""),
+        Key::new_fn("end", ""),
+        Key::new_fn("pag", "dow"),
     ]
 }
 
-fn en_row3() -> Vec<Key> {
+fn en_row4() -> Vec<Key> {
     vec![
-        Key::wide("caps lock", "caps lock", 13),
+        Key::wide("caps lock", "", 13),
         Key::new("A", "a", "A", "a"),
         Key::new("S", "s", "S", "s"),
         Key::new("D", "d", "D", "d"),
@@ -439,13 +476,17 @@ fn en_row3() -> Vec<Key> {
         Key::new("L", "l", "L", "l"),
         Key::new(":", ";", ":", ";"),
         Key::new("\"", "'", "\"", "'"),
-        Key::wide("enter", "enter", 13),
+        Key::wide("enter", "", 14),
+        Key::new_empty_half(),
+        Key::new_empty(),
+        Key::new_empty(),
+        // Key::new_empty(),
     ]
 }
 
-fn en_row4() -> Vec<Key> {
+fn en_row5() -> Vec<Key> {
     vec![
-        Key::wide("l-shift", "l-shift", 13),
+        Key::wide("l-shift", "", 13),
         Key::new("Z", "z", "Z", "z"),
         Key::new("X", "x", "X", "x"),
         Key::new("C", "c", "C", "c"),
@@ -456,30 +497,38 @@ fn en_row4() -> Vec<Key> {
         Key::new("<", ",", "<", ","),
         Key::new(">", ".", ">", "."),
         Key::new("?", "/", "?", "/"),
-        Key::wide("r-shift", "r-shift", 20),
+        Key::wide("r-shift", "", 21),
+        Key::new_empty_half(),
         Key::new_empty(),
+        Key::new_fn("↑", ""),
         Key::new_empty(),
-        Key::new_fn("↑", "↑"),
     ]
 }
 
-fn en_row5() -> Vec<Key> {
+fn en_row6() -> Vec<Key> {
     vec![
-        Key::new_fn("ctr", "ctr"),
-        Key::new_fn("sup", "sup"),
-        Key::new_fn("alt", "alt"),
-        Key::wide("spacebar", "spacebar", 69),
-        Key::new_fn("alt", "alt"),
-        Key::new_fn("ctr", "ctr"),
-        Key::new_empty(),
-        Key::new_fn("←", "←"),
-        Key::new_fn("↓", "↓"),
-        Key::new_fn("→", "→"),
+        Key::new_fn("ctr", ""),
+        Key::new_fn("sup", ""),
+        Key::new_fn("alt", ""),
+        Key::wide("spacebar", "", 69),
+        Key::new_fn("alt", ""),
+        Key::new_fn("ctr", ""),
+        Key::new_empty_half(),
+        Key::new_fn("←", ""),
+        Key::new_fn("↓", ""),
+        Key::new_fn("→", ""),
     ]
 }
 
 pub fn en_rows() -> Vec<Vec<Key>> {
-    vec![en_row1(), en_row2(), en_row3(), en_row4(), en_row5()]
+    vec![
+        en_row1(),
+        en_row2(),
+        en_row3(),
+        en_row4(),
+        en_row5(),
+        en_row6(),
+    ]
 }
 
 pub struct LayoutInfo {
@@ -763,7 +812,7 @@ fn keysym_name_to_display(name: &str) -> String {
     name.to_string()
 }
 
-const ROW1_NAMES: [Option<&str>; 13] = [
+const ROW2_NAMES: [Option<&str>; 13] = [
     Some("TLDE"),
     Some("AE01"),
     Some("AE02"),
@@ -779,7 +828,7 @@ const ROW1_NAMES: [Option<&str>; 13] = [
     Some("AE12"),
 ];
 
-const ROW2_NAMES: [Option<&str>; 12] = [
+const ROW3_NAMES: [Option<&str>; 12] = [
     Some("AD01"),
     Some("AD02"),
     Some("AD03"),
@@ -793,9 +842,9 @@ const ROW2_NAMES: [Option<&str>; 12] = [
     Some("AD11"),
     Some("AD12"),
 ];
-const ROW2_BKSL: &str = "BKSL";
+const ROW3_BKSL: &str = "BKSL";
 
-const ROW3_NAMES: [Option<&str>; 11] = [
+const ROW4_NAMES: [Option<&str>; 11] = [
     Some("AC01"),
     Some("AC02"),
     Some("AC03"),
@@ -809,7 +858,7 @@ const ROW3_NAMES: [Option<&str>; 11] = [
     Some("AC11"),
 ];
 
-const ROW4_NAMES: [Option<&str>; 10] = [
+const ROW5_NAMES: [Option<&str>; 10] = [
     Some("AB01"),
     Some("AB02"),
     Some("AB03"),
@@ -865,63 +914,63 @@ fn translate_row(
         .collect()
 }
 
+fn row_width(row: &[Key]) -> u16 {
+    row.iter()
+        .enumerate()
+        .map(|(i, key)| key.width() + if i + 1 < row.len() { 1 } else { 0 })
+        .sum()
+}
+
 fn build_rows(levels: &HashMap<String, Vec<String>>) -> Vec<Vec<Key>> {
     let row1 = en_row1();
-    let row1 = {
-        let backspace = row1.last().cloned();
-        let mut translated = translate_row(row1[..13].to_vec(), &ROW1_NAMES, levels);
-        if let Some(backspace) = backspace {
-            translated.push(backspace);
-        }
-        translated
-    };
 
     let row2 = en_row2();
     let row2 = {
-        let tab = row2.first().cloned();
-        let bksl = row2.last().cloned();
-        let mut translated = vec![];
-        if let Some(tab) = tab {
-            translated.push(tab);
-        }
-        translated.extend(translate_row(row2[1..13].to_vec(), &ROW2_NAMES, levels));
-        if let Some(fallback) = bksl {
-            translated.push(translated_key(levels, ROW2_BKSL, fallback));
-        }
+        let backspace = row2[13].clone();
+        let trailing = row2[14..].to_vec();
+        let mut translated = translate_row(row2[..13].to_vec(), &ROW2_NAMES, levels);
+        translated.push(backspace);
+        translated.extend(trailing);
         translated
     };
 
     let row3 = en_row3();
     let row3 = {
-        let caps = row3.first().cloned();
-        let enter = row3.last().cloned();
-        let mut translated = vec![];
-        if let Some(caps) = caps {
-            translated.push(caps);
-        }
-        translated.extend(translate_row(row3[1..12].to_vec(), &ROW3_NAMES, levels));
-        if let Some(enter) = enter {
-            translated.push(enter);
-        }
+        let tab = row3[0].clone();
+        let bksl = row3[13].clone();
+        let trailing = row3[14..].to_vec();
+        let mut translated = vec![tab];
+        translated.extend(translate_row(row3[1..13].to_vec(), &ROW3_NAMES, levels));
+        translated.push(translated_key(levels, ROW3_BKSL, bksl));
+        translated.extend(trailing);
         translated
     };
 
     let row4 = en_row4();
     let row4 = {
-        let l_shift = row4.first().cloned();
-        let r_shift = row4.last().cloned();
-        let mut translated = vec![];
-        if let Some(l_shift) = l_shift {
-            translated.push(l_shift);
-        }
-        translated.extend(translate_row(row4[1..11].to_vec(), &ROW4_NAMES, levels));
-        if let Some(r_shift) = r_shift {
-            translated.push(r_shift);
-        }
+        let caps = row4[0].clone();
+        let enter = row4[12].clone();
+        let trailing = row4[13..].to_vec();
+        let mut translated = vec![caps];
+        translated.extend(translate_row(row4[1..12].to_vec(), &ROW4_NAMES, levels));
+        translated.push(enter);
+        translated.extend(trailing);
         translated
     };
 
     let row5 = en_row5();
+    let row5 = {
+        let l_shift = row5[0].clone();
+        let r_shift = row5[11].clone();
+        let trailing = row5[12..].to_vec();
+        let mut translated = vec![l_shift];
+        translated.extend(translate_row(row5[1..11].to_vec(), &ROW5_NAMES, levels));
+        translated.push(r_shift);
+        translated.extend(trailing);
+        translated
+    };
 
-    vec![row1, row2, row3, row4, row5]
+    let row6 = en_row6();
+
+    vec![row1, row2, row3, row4, row5, row6]
 }
