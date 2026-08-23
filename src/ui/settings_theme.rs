@@ -86,7 +86,7 @@ pub fn draw_settings_themes(frame: &mut Frame, app: &mut App) {
         None,
     );
 
-    let key_preview = List::new([format!("{} — by {}", theme.name, theme.author)]).block(
+    let key_preview = List::new([format!("{} by {}", theme.name, theme.author)]).block(
         Block::bordered()
             .border_style(Style::default().fg(theme.colors.border))
             .padding(Padding::horizontal(1)),

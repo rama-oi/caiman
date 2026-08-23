@@ -29,15 +29,7 @@ fn handle_cli_flags() -> bool {
         .iter()
         .any(|a| a == "--version" || a == "-V" || a == "-v")
     {
-        println!("caiman {}", env!("CARGO_PKG_VERSION"));
-        return true;
-    }
-
-    if args.iter().any(|a| a == "--help" || a == "-h") {
-        println!(
-            "caiman {}\n\nA terminal keyboard layout switcher.\n\nUSAGE:\n    caiman [OPTIONS]\n\nOPTIONS:\n    -V, --version    Print version information\n    -h, --help       Print this help message",
-            env!("CARGO_PKG_VERSION")
-        );
+        println!("{} {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
         return true;
     }
 

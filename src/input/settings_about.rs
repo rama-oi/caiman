@@ -11,8 +11,6 @@ pub fn handle_settings_about_input(app: &mut App, key: KeyEvent) {
 
     match key.code {
         KeyCode::Esc => router::go_back(app),
-        KeyCode::Down => {}
-        KeyCode::Up => {}
         _ => {}
     }
 }

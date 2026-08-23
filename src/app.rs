@@ -26,8 +26,6 @@ pub struct App {
     pub should_quit: bool,
     pub selected_layout: usize,
     pub layouts: Vec<LayoutInfo>,
-    pub layout_list_state: ListState,
-    pub search_query: String,
     pub status_message: Option<String>,
     pub last_key_event: Option<KeyEvent>,
     pub themes: Vec<Theme>,
@@ -43,27 +41,6 @@ impl App {
             .get(self.selected_theme)
             .unwrap_or(&self.themes[0])
     }
-
-    pub fn filtered_layout_indices(&self) -> Vec<usize> {
-        let query = self.search_query.trim().to_lowercase();
-
-        if query.is_empty() {
-            return (0..self.layouts.len()).collect();
-        }
-
-        self.layouts
-            .iter()
-            .enumerate()
-            .filter(|(_, layout)| {
-                layout
-                    .id
-                    .to_lowercase()
-                    .split('_')
-                    .any(|part| part.starts_with(&query))
-            })
-            .map(|(index, _)| index)
-            .collect()
-    }
 }
 
 pub fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<()> {
@@ -77,8 +54,6 @@ pub fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<
         should_quit: false,
         selected_layout: 0,
         layouts: discover_layouts(&config.list_layout),
-        layout_list_state: ListState::default().with_selected(Some(0)),
-        search_query: String::new(),
         status_message: None,
         last_key_event: None,
         themes,
