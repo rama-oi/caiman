@@ -1,7 +1,9 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::app::App;
+use crate::config::save_theme;
 use crate::router;
+use crate::theme::slugify;
 
 fn preview_theme(app: &mut App, index: usize) {
     if index >= app.themes.len() {
@@ -9,8 +11,6 @@ fn preview_theme(app: &mut App, index: usize) {
     }
 
     app.theme_list_state.select(Some(index));
-
-    // app.apply_theme(index);
 }
 
 fn select_next_theme(app: &mut App) {
@@ -50,12 +50,15 @@ fn commit_theme(app: &mut App) {
 
     app.selected_theme = index;
 
-    // app.save_theme();
+    if let Some(theme) = app.themes.get(index) {
+        let slug = slugify(&theme.name);
+        app.config.theme = slug.clone();
+        save_theme(&slug);
+    }
 }
 
 pub fn handle_settings_themes_input(app: &mut App, key: KeyEvent) {
     if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('q') {
-        // app.apply_theme(app.selected_theme);
         app.theme_list_state.select(Some(app.selected_theme));
         app.should_quit = true;
         return;
@@ -76,7 +79,6 @@ pub fn handle_settings_themes_input(app: &mut App, key: KeyEvent) {
         }
 
         KeyCode::Esc => {
-            // app.apply_theme(app.selected_theme);
             app.theme_list_state.select(Some(app.selected_theme));
 
             router::go_back(app);

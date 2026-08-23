@@ -204,7 +204,7 @@ pub fn discover_themes() -> Vec<Theme> {
     themes
 }
 
-fn slugify(name: &str) -> String {
+pub fn slugify(name: &str) -> String {
     name.chars()
         .map(|c| match c {
             c if c.is_whitespace() || c == '_' => '-',

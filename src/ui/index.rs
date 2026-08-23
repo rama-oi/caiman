@@ -14,6 +14,10 @@ use crate::ui::keyboard::{describe_key_event, find_highlight, highlight_label, r
 const HELP_ITEMS: &[&str] = &["[^s] settings", "[^q] quit"];
 
 pub fn draw_index(frame: &mut Frame, app: &mut App) {
+    draw_keyboard_backdrop(frame, app, HELP_ITEMS);
+}
+
+pub fn draw_keyboard_backdrop(frame: &mut Frame, app: &mut App, help_items: &[&str]) {
     let theme = app.theme().clone();
     let full_area = frame.area();
 
@@ -27,7 +31,7 @@ pub fn draw_index(frame: &mut Frame, app: &mut App) {
     );
 
     let help_width = full_area.width.saturating_sub(2);
-    let help_lines = wrap_help_items(HELP_ITEMS, help_width);
+    let help_lines = wrap_help_items(help_items, help_width);
     let help_height = help_lines.len() as u16;
 
     let vertical = Layout::default()

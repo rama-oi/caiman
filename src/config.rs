@@ -77,3 +77,44 @@ pub fn load_config() -> Config {
         }
     }
 }
+
+fn save_config_key(key: &str, value: &str) {
+    let Some(path) = config_path() else {
+        return;
+    };
+
+    let raw = std::fs::read_to_string(&path).unwrap_or_default();
+    let new_line = format!("{key} = \"{value}\"");
+
+    let mut found = false;
+    let mut lines: Vec<String> = raw
+        .lines()
+        .map(|line| {
+            if !found && line_key(line) == Some(key) {
+                found = true;
+                new_line.clone()
+            } else {
+                line.to_string()
+            }
+        })
+        .collect();
+
+    if !found {
+        lines.push(new_line);
+    }
+
+    let updated = lines.join("\n") + "\n";
+
+    if let Err(err) = std::fs::write(&path, updated) {
+        eprintln!("Failed to write {}: {err}", path.display());
+    }
+}
+
+fn line_key(line: &str) -> Option<&str> {
+    let (key, _) = line.split_once('=')?;
+    Some(key.trim())
+}
+
+pub fn save_theme(theme_slug: &str) {
+    save_config_key("theme", theme_slug);
+}
