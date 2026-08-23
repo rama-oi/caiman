@@ -1,7 +1,7 @@
 # Used to resolve the current layout's name into layout/variant codes on
 # Wayland (see current_layout_wayland below). Needs to print the same YAML
 # that `xkbcli list` does.
-list_layout = "xkbcli list"
+list_layout = "xkbcli list --load-exotic"
 
 # The command caiman runs to find the currently active keyboard layout
 # when running under X11.

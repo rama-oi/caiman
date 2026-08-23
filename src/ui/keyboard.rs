@@ -853,11 +853,32 @@ fn extract_symbol_list(block: &str) -> Option<Vec<String>> {
     None
 }
 
+fn dead_key_display(name: &str) -> Option<&'static str> {
+    Some(match name {
+        "dead_grave" => "`",
+        "dead_acute" => "´",
+        "dead_circumflex" => "^",
+        "dead_tilde" => "~",
+        "dead_diaeresis" => "¨",
+        "dead_caron" => "ˇ",
+        "dead_breve" => "˘",
+        "dead_macron" => "¯",
+        "dead_abovering" => "˚",
+        "dead_cedilla" => "¸",
+        "dead_ogonek" => "˛",
+        _ => return None,
+    })
+}
+
 fn keysym_name_to_display(name: &str) -> String {
     let name = name.trim();
 
     if name.is_empty() || name == "NoSymbol" {
         return String::new();
+    }
+
+    if let Some(accent) = dead_key_display(name) {
+        return accent.to_string();
     }
 
     if name.chars().count() == 1 {
@@ -959,7 +980,17 @@ fn translated_key(levels: &HashMap<String, Vec<String>>, name: &str, fallback: K
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| fallback_shifted.clone());
 
-    Key::new(&shifted, &unshifted, &shifted, &unshifted)
+    let altgr = syms
+        .get(2)
+        .map(|s| keysym_name_to_display(s))
+        .unwrap_or_default();
+
+    let altgr_shifted = syms
+        .get(3)
+        .map(|s| keysym_name_to_display(s))
+        .unwrap_or_default();
+
+    Key::new(&shifted, &unshifted, &altgr_shifted, &altgr)
 }
 
 fn translate_row(
