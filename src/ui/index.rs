@@ -5,18 +5,13 @@ use ratatui::{
     layout::{Constraint, Direction, Layout},
     style::{Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, List, ListItem, Padding, Paragraph},
+    widgets::{Block, Padding, Paragraph},
 };
 
 use crate::app::App;
 use crate::ui::keyboard::{describe_key_event, find_highlight, highlight_label, render_keyboard};
 
-const HELP_ITEMS: &[&str] = &[
-    "[↑↓] navigate",
-    "[esc] clear search",
-    "[^s] settings",
-    "[^q] quit",
-];
+const HELP_ITEMS: &[&str] = &["[^s] settings", "[^q] quit"];
 
 pub fn draw_index(frame: &mut Frame, app: &mut App) {
     let theme = app.theme().clone();
@@ -44,85 +39,13 @@ pub fn draw_index(frame: &mut Frame, app: &mut App) {
         ])
         .split(full_area);
 
-    let horizontal = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([Constraint::Length(28), Constraint::Fill(1)])
-        .split(vertical[0]);
-
-    let switch_block = Block::bordered()
-        .title_style(Style::default().fg(theme.colors.header))
-        .border_style(Style::default().fg(theme.colors.border))
-        .padding(Padding::horizontal(1));
-    let switch_inner = switch_block.inner(horizontal[0]);
-    frame.render_widget(switch_block, horizontal[0]);
-
-    let switch_layout = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(1),
-            Constraint::Length(1),
-            Constraint::Fill(1),
-        ])
-        .split(switch_inner);
-
-    let search_area = switch_layout[0];
-    let divider_area = switch_layout[1];
-    let list_area = switch_layout[2];
-
-    let search_text = if app.search_query.is_empty() {
-        Paragraph::new(" search layouts…").style(Style::default().fg(theme.colors.shell_light))
-    } else {
-        Paragraph::new(format!(" {}", app.search_query))
-            .style(Style::default().fg(theme.colors.text))
-    };
-    frame.render_widget(search_text, search_area);
-
-    frame.set_cursor_position((
-        search_area.x + 1 + app.search_query.chars().count() as u16,
-        search_area.y,
-    ));
-
-    let divider = Paragraph::new("─".repeat(divider_area.width as usize))
-        .style(Style::default().fg(theme.colors.shell));
-    frame.render_widget(divider, divider_area);
-
-    let label_width = list_area.width.saturating_sub(2);
-
-    let filtered_indices = app.filtered_layout_indices();
-
-    let layout_items: Vec<ListItem> = filtered_indices
-        .iter()
-        .map(|&i| {
-            let layout = &app.layouts[i];
-            let (marker, marker_color) = if i == app.selected_layout {
-                ("●", theme.colors.accent)
-            } else {
-                ("○", theme.colors.shell_light)
-            };
-            ListItem::new(format!(
-                "{marker} {}",
-                truncate_label(&layout.id, label_width)
-            ))
-            .style(Style::default().fg(marker_color))
-        })
-        .collect();
-
-    let layout_list = List::new(layout_items).highlight_style(
-        Style::default()
-            .fg(theme.colors.selection_fg)
-            .bg(theme.colors.selection_bg)
-            .add_modifier(Modifier::BOLD),
-    );
-
-    frame.render_stateful_widget(layout_list, list_area, &mut app.layout_list_state);
-
     let keyboard_block = Block::bordered()
         .title_style(Style::default().fg(theme.colors.header))
         .border_style(Style::default().fg(theme.colors.border));
 
-    let keyboard_area = keyboard_block.inner(horizontal[1]);
+    let keyboard_area = keyboard_block.inner(vertical[0]);
 
-    frame.render_widget(keyboard_block, horizontal[1]);
+    frame.render_widget(keyboard_block, vertical[0]);
 
     let key_info = app.last_key_event.as_ref().map(describe_key_event);
     let highlighted = app
