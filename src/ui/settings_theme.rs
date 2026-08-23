@@ -81,7 +81,7 @@ pub fn draw_settings_themes(frame: &mut Frame, app: &mut App) {
     render_keyboard(
         frame,
         keyboard_inner,
-        &app.layouts[app.selected_layout].rows,
+        &app.current_layout.rows,
         &theme,
         None,
     );

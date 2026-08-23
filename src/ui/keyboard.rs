@@ -11,6 +11,7 @@ use std::collections::HashMap;
 use std::process::Command;
 use xkbcommon::xkb;
 
+use crate::config::Config;
 use crate::theme::Theme;
 
 #[derive(Clone)]
@@ -465,7 +466,6 @@ pub fn en_rows() -> Vec<Vec<Key>> {
 }
 
 pub struct LayoutInfo {
-    pub id: String,
     pub name: String,
 
     pub layout: String,
@@ -475,75 +475,132 @@ pub struct LayoutInfo {
 }
 
 #[derive(Debug, Deserialize)]
-struct XkbData {
+struct XkbLayout {
+    layout: String,
+    variant: String,
+    description: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct XkbListData {
     layouts: Vec<XkbLayout>,
 }
 
 #[derive(Debug, Deserialize)]
-struct XkbLayout {
-    layout: String,
-    variant: String,
-    brief: String,
-    description: String,
+struct SwayInput {
+    #[serde(rename = "type")]
+    kind: Option<String>,
+    xkb_active_layout_name: Option<String>,
 }
 
-pub fn discover_layouts(list_layout_cmd: &str) -> Vec<LayoutInfo> {
-    match get_layouts(list_layout_cmd) {
-        Ok(mut layouts) => {
-            println!("{} layouts", layouts.len());
+/// Finds the layout currently active on the system and compiles it into
+/// rows ready to render. Falls back to a plain "English (US)" layout if
+/// detection fails for any reason.
+pub fn detect_current_layout(config: &Config) -> LayoutInfo {
+    let detected = if is_wayland_session() {
+        detect_wayland_layout(&config.current_layout_wayland, &config.list_layout)
+    } else {
+        detect_x11_layout(&config.current_layout_x11)
+    };
 
-            layouts.sort_by(|a, b| {
-                a.brief
-                    .cmp(&b.brief)
-                    .then_with(|| a.layout.cmp(&b.layout))
-                    .then_with(|| a.variant.cmp(&b.variant))
-                    .then_with(|| a.description.cmp(&b.description))
+    match detected {
+        Ok((layout, variant)) => {
+            let rows = compile_rows(&layout, &variant).unwrap_or_else(|err| {
+                eprintln!("Failed to load keys for {layout} ({variant}): {err}");
+                en_rows()
             });
 
-            layouts
-                .into_iter()
-                .map(|layout| {
-                    let id = if layout.variant.is_empty() {
-                        format!("{}_{}", layout.brief, layout.layout)
-                    } else {
-                        format!("{}_{}_{}", layout.brief, layout.layout, layout.variant)
-                    };
+            let name = if variant.is_empty() {
+                layout.clone()
+            } else {
+                format!("{layout} ({variant})")
+            };
 
-                    let rows =
-                        compile_rows(&layout.layout, &layout.variant).unwrap_or_else(|err| {
-                            eprintln!(
-                                "Failed to load keys for {} ({}): {err}",
-                                layout.layout, layout.variant
-                            );
-                            en_rows()
-                        });
-
-                    LayoutInfo {
-                        id,
-                        name: layout.description,
-                        layout: layout.layout,
-                        variant: layout.variant,
-                        rows,
-                    }
-                })
-                .collect()
+            LayoutInfo {
+                name,
+                layout,
+                variant,
+                rows,
+            }
         }
 
         Err(err) => {
-            eprintln!("Failed to get layouts: {err}");
+            eprintln!("Failed to detect current layout: {err}");
 
-            vec![LayoutInfo {
-                id: "us".to_string(),
+            LayoutInfo {
                 name: "English (US)".to_string(),
                 layout: "us".to_string(),
                 variant: String::new(),
                 rows: en_rows(),
-            }]
+            }
         }
     }
 }
 
-fn get_layouts(list_layout_cmd: &str) -> Result<Vec<XkbLayout>, Box<dyn std::error::Error>> {
+fn is_wayland_session() -> bool {
+    std::env::var_os("WAYLAND_DISPLAY").is_some() || std::env::var_os("SWAYSOCK").is_some()
+}
+
+fn detect_x11_layout(cmd: &str) -> Result<(String, String), Box<dyn std::error::Error>> {
+    let (program, args) = split_command(cmd, "setxkbmap", &["-query"]);
+
+    let output = Command::new(&program).args(&args).output()?;
+
+    if !output.status.success() {
+        return Err(format!("{cmd} failed: {}", String::from_utf8_lossy(&output.stderr)).into());
+    }
+
+    let text = String::from_utf8_lossy(&output.stdout);
+
+    let mut layout = String::new();
+    let mut variant = String::new();
+
+    for line in text.lines() {
+        if let Some(rest) = line.strip_prefix("layout:") {
+            layout = rest.trim().to_string();
+        } else if let Some(rest) = line.strip_prefix("variant:") {
+            variant = rest.trim().to_string();
+        }
+    }
+
+    if layout.is_empty() {
+        return Err(format!("{cmd} did not report a layout").into());
+    }
+
+    Ok((layout, variant))
+}
+
+fn detect_wayland_layout(
+    cmd: &str,
+    list_layout_cmd: &str,
+) -> Result<(String, String), Box<dyn std::error::Error>> {
+    let (program, args) = split_command(cmd, "swaymsg", &["-t", "get_inputs"]);
+
+    let output = Command::new(&program).args(&args).output()?;
+
+    if !output.status.success() {
+        return Err(format!("{cmd} failed: {}", String::from_utf8_lossy(&output.stderr)).into());
+    }
+
+    let inputs: Vec<SwayInput> = serde_yaml::from_slice(&output.stdout)?;
+
+    let active_name = inputs
+        .into_iter()
+        .find(|input| input.kind.as_deref() == Some("keyboard"))
+        .and_then(|input| input.xkb_active_layout_name)
+        .ok_or("swaymsg reported no active keyboard layout")?;
+
+    let layouts = list_xkb_layouts(list_layout_cmd)?;
+
+    let matched = layouts
+        .into_iter()
+        .find(|candidate| candidate.description.eq_ignore_ascii_case(&active_name))
+        .ok_or_else(|| format!("no layout in `{list_layout_cmd}` matches '{active_name}'"))?;
+
+    Ok((matched.layout, matched.variant))
+}
+
+fn list_xkb_layouts(list_layout_cmd: &str) -> Result<Vec<XkbLayout>, Box<dyn std::error::Error>> {
     let (program, args) = split_command(list_layout_cmd, "xkbcli", &["list"]);
 
     let output = Command::new(&program).args(&args).output()?;
@@ -556,7 +613,7 @@ fn get_layouts(list_layout_cmd: &str) -> Result<Vec<XkbLayout>, Box<dyn std::err
         .into());
     }
 
-    let data: XkbData = serde_yaml::from_slice(&output.stdout)?;
+    let data: XkbListData = serde_yaml::from_slice(&output.stdout)?;
 
     Ok(data.layouts)
 }

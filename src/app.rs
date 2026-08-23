@@ -7,7 +7,7 @@ use crate::input::settings_about::handle_settings_about_input;
 use crate::input::settings_theme::handle_settings_themes_input;
 use crate::theme::{Theme, discover_themes, find_theme_index, install_bundled_themes_if_missing};
 use crate::ui::index::draw_index;
-use crate::ui::keyboard::{LayoutInfo, discover_layouts};
+use crate::ui::keyboard::{LayoutInfo, detect_current_layout};
 use crate::ui::settings::draw_settings;
 use crate::ui::settings_about::draw_settings_about;
 use crate::ui::settings_theme::draw_settings_themes;
@@ -24,8 +24,7 @@ pub enum Screen {
 pub struct App {
     pub screen: Screen,
     pub should_quit: bool,
-    pub selected_layout: usize,
-    pub layouts: Vec<LayoutInfo>,
+    pub current_layout: LayoutInfo,
     pub status_message: Option<String>,
     pub last_key_event: Option<KeyEvent>,
     pub themes: Vec<Theme>,
@@ -52,8 +51,7 @@ pub fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<
     let mut app = App {
         screen: Screen::Index,
         should_quit: false,
-        selected_layout: 0,
-        layouts: discover_layouts(&config.list_layout),
+        current_layout: detect_current_layout(&config),
         status_message: None,
         last_key_event: None,
         themes,

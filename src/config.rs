@@ -4,12 +4,24 @@ use serde::Deserialize;
 pub struct Config {
     #[serde(default = "default_list_layout")]
     pub list_layout: String,
+    #[serde(default = "default_current_layout_x11")]
+    pub current_layout_x11: String,
+    #[serde(default = "default_current_layout_wayland")]
+    pub current_layout_wayland: String,
     #[serde(default = "default_theme")]
     pub theme: String,
 }
 
 fn default_list_layout() -> String {
     "xkbcli list".to_string()
+}
+
+fn default_current_layout_x11() -> String {
+    "setxkbmap -query".to_string()
+}
+
+fn default_current_layout_wayland() -> String {
+    "swaymsg -t get_inputs".to_string()
 }
 
 fn default_theme() -> String {
@@ -20,6 +32,8 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             list_layout: default_list_layout(),
+            current_layout_x11: default_current_layout_x11(),
+            current_layout_wayland: default_current_layout_wayland(),
             theme: default_theme(),
         }
     }

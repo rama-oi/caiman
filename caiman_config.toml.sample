@@ -1,6 +1,16 @@
-# The command caiman runs to discover the layouts installed on your
-# system. Needs to print the same YAML that `xkbcli list` does.
+# Used to resolve the current layout's name into layout/variant codes on
+# Wayland (see current_layout_wayland below). Needs to print the same YAML
+# that `xkbcli list` does.
 list_layout = "xkbcli list"
+
+# The command caiman runs to find the currently active keyboard layout
+# when running under X11.
+current_layout_x11 = "setxkbmap -query"
+
+# The command caiman runs to find the currently active keyboard layout
+# when running under Wayland (currently only sway's `swaymsg` output is
+# understood).
+current_layout_wayland = "swaymsg -t get_inputs"
 
 # Name of a theme installed in ~/.config/rama/themes/, or one of the
 # themes bundled with caiman (e.g. "catppuccin-mocha", "dracula",

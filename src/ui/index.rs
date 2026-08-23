@@ -52,12 +52,12 @@ pub fn draw_index(frame: &mut Frame, app: &mut App) {
         .last_key_event
         .as_ref()
         .and_then(|event| highlight_label(event.code))
-        .and_then(|label| find_highlight(&app.layouts[app.selected_layout].rows, &label));
+        .and_then(|label| find_highlight(&app.current_layout.rows, &label));
 
     render_keyboard(
         frame,
         keyboard_area,
-        &app.layouts[app.selected_layout].rows,
+        &app.current_layout.rows,
         &theme,
         highlighted,
     );
