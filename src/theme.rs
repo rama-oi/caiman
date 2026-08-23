@@ -24,13 +24,6 @@ pub struct ThemeColors {
     pub accent: Color,
 
     #[serde(deserialize_with = "deserialize_color")]
-    pub warning: Color,
-    #[serde(deserialize_with = "deserialize_color")]
-    pub error: Color,
-    #[serde(deserialize_with = "deserialize_color")]
-    pub success: Color,
-
-    #[serde(deserialize_with = "deserialize_color")]
     pub selection_fg: Color,
     #[serde(deserialize_with = "deserialize_color")]
     pub selection_bg: Color,
@@ -62,9 +55,6 @@ impl Theme {
                 border: Color::DarkGray,
                 header: Color::White,
                 accent: Color::Blue,
-                warning: Color::Yellow,
-                error: Color::Red,
-                success: Color::Green,
                 selection_fg: Color::Black,
                 selection_bg: Color::White,
                 claws: Color::Blue,
