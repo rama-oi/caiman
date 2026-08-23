@@ -1,10 +1,11 @@
-use crossterm::event::KeyCode;
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::app::App;
 use crate::router;
 
 fn select_next_layout(app: &mut App) {
     let indices = app.filtered_layout_indices();
+
     if indices.is_empty() {
         return;
     }
@@ -13,6 +14,7 @@ fn select_next_layout(app: &mut App) {
         .iter()
         .position(|&i| i == app.selected_layout)
         .unwrap_or(0);
+
     let next_pos = (pos + 1) % indices.len();
 
     app.selected_layout = indices[next_pos];
@@ -21,6 +23,7 @@ fn select_next_layout(app: &mut App) {
 
 fn select_prev_layout(app: &mut App) {
     let indices = app.filtered_layout_indices();
+
     if indices.is_empty() {
         return;
     }
@@ -29,6 +32,7 @@ fn select_prev_layout(app: &mut App) {
         .iter()
         .position(|&i| i == app.selected_layout)
         .unwrap_or(0);
+
     let prev_pos = (pos + indices.len() - 1) % indices.len();
 
     app.selected_layout = indices[prev_pos];
@@ -52,44 +56,33 @@ fn refresh_filtered_selection(app: &mut App) {
     }
 }
 
-pub fn handle_index_input(app: &mut App, key: KeyCode) {
-    if app.command_mode {
-        match key {
+pub fn handle_index_input(app: &mut App, key: KeyEvent) {
+    if key.modifiers.contains(KeyModifiers::CONTROL) {
+        match key.code {
             KeyCode::Char('q') => {
                 app.should_quit = true;
-                app.command_mode = false;
+                return;
             }
+
             KeyCode::Char('s') => {
                 router::go_to_settings(app);
-                app.command_mode = false;
+                return;
             }
-            KeyCode::Esc => {
-                app.command_mode = false;
-            }
+
             _ => {}
         }
-        return;
     }
 
-    match key {
-        KeyCode::Char(':') => {
-            app.command_mode = true;
-        }
-        KeyCode::Tab => {}
+    match key.code {
         KeyCode::Down => select_next_layout(app),
+
         KeyCode::Up => select_prev_layout(app),
-        KeyCode::Backspace => {
-            app.search_query.pop();
-            refresh_filtered_selection(app);
-        }
+
         KeyCode::Esc => {
             app.search_query.clear();
             refresh_filtered_selection(app);
         }
-        KeyCode::Char(c) => {
-            app.search_query.push(c);
-            refresh_filtered_selection(app);
-        }
+
         _ => {}
     }
 }

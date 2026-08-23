@@ -10,19 +10,11 @@ use ratatui::{
 use crate::app::App;
 use crate::ui::keyboard::render_keyboard;
 
-const HELP_ITEMS: &[&str] = &[
-    "[↑↓] navigate",
-    "[enter] open",
-    "[esc] back",
-    "[:] command_mode",
-    "[:q] quit",
-];
+const HELP_ITEMS: &[&str] = &["[↑↓] navigate", "[enter] open", "[esc] back", "[^q] quit"];
 
-pub const ITEM_LIST_LAYOUTS: usize = 0;
-pub const ITEM_SWITCH_LAYOUT: usize = 1;
-pub const ITEM_SWITCH_THEME: usize = 2;
-pub const ITEM_ABOUT_CAIMAN: usize = 3;
-pub const ITEM_COUNT: usize = 4;
+pub const ITEM_SWITCH_THEME: usize = 0;
+pub const ITEM_ABOUT_CAIMAN: usize = 1;
+pub const ITEM_COUNT: usize = 2;
 
 pub fn draw_settings(frame: &mut Frame, app: &mut App) {
     let theme = app.theme().clone();
@@ -56,7 +48,6 @@ pub fn draw_settings(frame: &mut Frame, app: &mut App) {
         .split(vertical[0]);
 
     let items = [
-        format!("List Layouts\n{}", app.config.list_layout),
         format!("Switch Theme\n{}", theme.name),
         "About Caiman".to_string(),
     ];

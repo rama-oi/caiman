@@ -9,12 +9,7 @@ use ratatui::{
 
 use crate::app::App;
 
-const HELP_ITEMS: &[&str] = &[
-    "[↑↓] navigate",
-    "[esc] back",
-    "[:] command_mode",
-    "[:q] quit",
-];
+const HELP_ITEMS: &[&str] = &["[esc] back", "[^q] quit"];
 
 pub fn draw_settings_about(frame: &mut Frame, app: &mut App) {
     let theme = app.theme().clone();

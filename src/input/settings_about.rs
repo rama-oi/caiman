@@ -1,29 +1,16 @@
-use crossterm::event::KeyCode;
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::app::App;
 use crate::router;
 
-pub fn handle_settings_about_input(app: &mut App, key: KeyCode) {
-    if app.command_mode {
-        match key {
-            KeyCode::Char('q') => {
-                app.should_quit = true;
-                app.command_mode = false;
-            }
-            KeyCode::Esc => {
-                app.command_mode = false;
-            }
-            _ => {}
-        }
+pub fn handle_settings_about_input(app: &mut App, key: KeyEvent) {
+    if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('q') {
+        app.should_quit = true;
         return;
     }
 
-    match key {
-        KeyCode::Char(':') => {
-            app.command_mode = true;
-        }
+    match key.code {
         KeyCode::Esc => router::go_back(app),
-        KeyCode::Tab => {}
         KeyCode::Down => {}
         KeyCode::Up => {}
         _ => {}

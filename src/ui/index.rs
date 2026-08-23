@@ -12,13 +12,10 @@ use crate::app::App;
 use crate::ui::keyboard::{describe_key_event, find_highlight, highlight_label, render_keyboard};
 
 const HELP_ITEMS: &[&str] = &[
-    "[type] search",
     "[↑↓] navigate",
     "[esc] clear search",
-    "[:] command_mode",
-    "[tab] switch_section",
-    "[:s] settings",
-    "[:q] quit",
+    "[^s] settings",
+    "[^q] quit",
 ];
 
 pub fn draw_index(frame: &mut Frame, app: &mut App) {

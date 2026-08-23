@@ -24,7 +24,6 @@ pub enum Screen {
 pub struct App {
     pub screen: Screen,
     pub should_quit: bool,
-    pub command_mode: bool,
     pub selected_layout: usize,
     pub layouts: Vec<LayoutInfo>,
     pub layout_list_state: ListState,
@@ -76,7 +75,6 @@ pub fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<
     let mut app = App {
         screen: Screen::Index,
         should_quit: false,
-        command_mode: false,
         selected_layout: 0,
         layouts: discover_layouts(&config.list_layout),
         layout_list_state: ListState::default().with_selected(Some(0)),
@@ -102,10 +100,10 @@ pub fn run(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> io::Result<
             app.last_key_event = Some(key);
 
             match app.screen {
-                Screen::Index => handle_index_input(&mut app, key.code),
-                Screen::Settings => handle_settings_input(&mut app, key.code),
-                Screen::About => handle_settings_about_input(&mut app, key.code),
-                Screen::Themes => handle_settings_themes_input(&mut app, key.code),
+                Screen::Index => handle_index_input(&mut app, key),
+                Screen::Settings => handle_settings_input(&mut app, key),
+                Screen::About => handle_settings_about_input(&mut app, key),
+                Screen::Themes => handle_settings_themes_input(&mut app, key),
             }
         }
 
