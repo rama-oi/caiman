@@ -175,19 +175,49 @@ pub fn find_highlight(rows: &[Vec<Key>], target: &str) -> Option<(usize, usize)>
 pub fn highlight_label(code: CtKeyCode) -> Option<String> {
     let label = match code {
         CtKeyCode::Char(' ') => "spacebar".to_string(),
+
         CtKeyCode::Char(c) => c.to_string(),
+
         CtKeyCode::Backspace => "backspace".to_string(),
-        CtKeyCode::Tab => "tab".to_string(),
+        CtKeyCode::Tab | CtKeyCode::BackTab => "tab".to_string(),
         CtKeyCode::Enter => "enter".to_string(),
+        CtKeyCode::Esc => "esc".to_string(),
+
         CtKeyCode::CapsLock => "caps lock".to_string(),
+
+        CtKeyCode::Left => "←".to_string(),
+        CtKeyCode::Right => "→".to_string(),
+        CtKeyCode::Up => "↑".to_string(),
+        CtKeyCode::Down => "↓".to_string(),
+
+        CtKeyCode::Home => "home".to_string(),
+        CtKeyCode::End => "end".to_string(),
+        CtKeyCode::PageUp => "pag up".to_string(),
+        CtKeyCode::PageDown => "pag dow".to_string(),
+
+        CtKeyCode::Delete => "del".to_string(),
+        CtKeyCode::Insert => "ins".to_string(),
+
+        CtKeyCode::PrintScreen => "prt".to_string(),
+        CtKeyCode::ScrollLock => "scr".to_string(),
+        CtKeyCode::Pause => "pau".to_string(),
+
+        CtKeyCode::F(n) => format!("f{n}"),
+
         CtKeyCode::Modifier(ModifierKeyCode::LeftShift) => "l-shift".to_string(),
         CtKeyCode::Modifier(ModifierKeyCode::RightShift) => "r-shift".to_string(),
-        CtKeyCode::Modifier(ModifierKeyCode::LeftControl)
-        | CtKeyCode::Modifier(ModifierKeyCode::RightControl) => "ctr".to_string(),
-        CtKeyCode::Modifier(ModifierKeyCode::LeftAlt)
-        | CtKeyCode::Modifier(ModifierKeyCode::RightAlt) => "alt".to_string(),
-        CtKeyCode::Modifier(ModifierKeyCode::LeftSuper)
-        | CtKeyCode::Modifier(ModifierKeyCode::RightSuper) => "sup".to_string(),
+
+        CtKeyCode::Modifier(ModifierKeyCode::LeftControl) => "ctrl".to_string(),
+        CtKeyCode::Modifier(ModifierKeyCode::RightControl) => "ctrl".to_string(),
+
+        CtKeyCode::Modifier(ModifierKeyCode::LeftAlt) => "alt".to_string(),
+        CtKeyCode::Modifier(ModifierKeyCode::RightAlt) => "alt".to_string(),
+
+        CtKeyCode::Modifier(ModifierKeyCode::LeftSuper) => "sup".to_string(),
+        CtKeyCode::Modifier(ModifierKeyCode::RightSuper) => "sup".to_string(),
+
+        CtKeyCode::Media(media) => xf86_name_for_media(media)?.to_string(),
+
         _ => return None,
     };
 
@@ -507,12 +537,12 @@ fn en_row5() -> Vec<Key> {
 
 fn en_row6() -> Vec<Key> {
     vec![
-        Key::new_fn("ctr", ""),
-        Key::new_fn("sup", ""),
+        Key::new_fn("ctrl", ""),
+        Key::new_fn("super", ""),
         Key::new_fn("alt", ""),
         Key::wide("spacebar", "", 69),
         Key::new_fn("alt", ""),
-        Key::new_fn("ctr", ""),
+        Key::new_fn("ctrl", ""),
         Key::new_empty_half(),
         Key::new_fn("←", ""),
         Key::new_fn("↓", ""),
