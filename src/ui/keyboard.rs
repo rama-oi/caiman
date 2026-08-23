@@ -437,6 +437,7 @@ pub fn render_keyboard(
         let key_areas = Layout::default()
             .direction(Direction::Horizontal)
             .constraints(constraints)
+            .spacing(1)
             .split(row_area);
 
         for (key_index, key) in row.iter().enumerate() {
@@ -492,7 +493,7 @@ fn en_row2() -> Vec<Key> {
         Key::new(")", "0", ")", "0"),
         Key::new("_", "-", "_", "-"),
         Key::new("+", "=", "+", "="),
-        Key::wide("backspace", "", 13),
+        Key::wide("backspace", "", 15),
         Key::new_empty_half(),
         Key::new_fn("ins", ""),
         Key::new_fn("home", ""),
@@ -502,7 +503,7 @@ fn en_row2() -> Vec<Key> {
 
 fn en_row3() -> Vec<Key> {
     vec![
-        Key::wide("tab", "l-tab", 13),
+        Key::wide("tab", "l-tab", 15),
         Key::new("Q", "q", "Q", "q"),
         Key::new("W", "w", "W", "w"),
         Key::new("E", "e", "E", "e"),
@@ -525,7 +526,7 @@ fn en_row3() -> Vec<Key> {
 
 fn en_row4() -> Vec<Key> {
     vec![
-        Key::wide("caps lock", "", 13),
+        Key::wide("caps lock", "", 15),
         Key::new("A", "a", "A", "a"),
         Key::new("S", "s", "S", "s"),
         Key::new("D", "d", "D", "d"),
@@ -537,7 +538,7 @@ fn en_row4() -> Vec<Key> {
         Key::new("L", "l", "L", "l"),
         Key::new(":", ";", ":", ";"),
         Key::new("\"", "'", "\"", "'"),
-        Key::wide("enter", "", 14),
+        Key::wide("enter", "", 15),
         Key::new_empty_half(),
         Key::new_empty(),
         Key::new_empty(),
@@ -547,7 +548,7 @@ fn en_row4() -> Vec<Key> {
 
 fn en_row5() -> Vec<Key> {
     vec![
-        Key::wide("l-shift", "", 13),
+        Key::wide("l-shift", "", 15),
         Key::new("Z", "z", "Z", "z"),
         Key::new("X", "x", "X", "x"),
         Key::new("C", "c", "C", "c"),
@@ -558,7 +559,7 @@ fn en_row5() -> Vec<Key> {
         Key::new("<", ",", "<", ","),
         Key::new(">", ".", ">", "."),
         Key::new("?", "/", "?", "/"),
-        Key::wide("r-shift", "", 21),
+        Key::wide("r-shift", "", 23),
         Key::new_empty_half(),
         Key::new_empty(),
         Key::new_fn("↑", ""),
@@ -571,7 +572,7 @@ fn en_row6() -> Vec<Key> {
         Key::new_fn_id("ctrl", "", "l-ctrl"),
         Key::new_fn("super", ""),
         Key::new_fn_id("alt", "", "l-alt"),
-        Key::wide("spacebar", "", 69),
+        Key::wide("spacebar", "", 79),
         Key::new_fn_id("alt", "", "r-alt"),
         Key::new_fn_id("ctrl", "", "r-ctrl"),
         Key::new_empty_half(),
