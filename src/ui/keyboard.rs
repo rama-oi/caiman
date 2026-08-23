@@ -523,7 +523,6 @@ pub fn detect_current_layout(config: &Config) -> LayoutInfo {
 
         Err(err) => {
             eprintln!("Failed to detect current layout: {err}");
-
             LayoutInfo {
                 name: "English (US)".to_string(),
                 layout: "us".to_string(),

@@ -1,7 +1,7 @@
 use ratatui::{
+    Frame,
     style::{Modifier, Style},
     widgets::{List, ListItem},
-    Frame,
 };
 
 use crate::app::App;
@@ -17,7 +17,7 @@ pub fn draw_settings_themes(frame: &mut Frame, app: &mut App) {
     let theme = app.theme().clone();
     let full_area = frame.area();
 
-    let modal_area = centered_rect(36, 16, full_area);
+    let modal_area = centered_rect(46, 10, full_area);
     let inner = render_modal(frame, modal_area, "themes", &theme);
 
     let theme_items: Vec<ListItem> = app
@@ -28,7 +28,7 @@ pub fn draw_settings_themes(frame: &mut Frame, app: &mut App) {
             let (marker, marker_color) = if i == app.selected_theme {
                 ("●", theme.colors.accent)
             } else {
-                ("○", theme.colors.shell_light)
+                ("○", theme.colors.text)
             };
             ListItem::new(format!("{marker} {}", t.name)).style(Style::default().fg(marker_color))
         })

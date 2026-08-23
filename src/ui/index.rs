@@ -122,7 +122,7 @@ pub fn draw_keyboard_backdrop(frame: &mut Frame, app: &mut App, help_items: &[&s
             for &divider_index in &[1usize, 3, 5] {
                 let divider = Paragraph::new("│\n│")
                     .alignment(ratatui::layout::Alignment::Center)
-                    .style(Style::default().fg(theme.colors.shell));
+                    .style(Style::default().fg(theme.colors.text));
                 frame.render_widget(divider, columns[divider_index]);
             }
         }
@@ -145,7 +145,7 @@ pub fn draw_keyboard_backdrop(frame: &mut Frame, app: &mut App, help_items: &[&s
         .collect::<Vec<_>>()
         .join("\n");
 
-    let help = Paragraph::new(help_text).style(Style::default().fg(theme.colors.shell_light));
+    let help = Paragraph::new(help_text).style(Style::default().fg(theme.colors.text));
 
     frame.render_widget(help, vertical[2]);
 }
