@@ -10,7 +10,7 @@ use ratatui::{
 use crate::app::App;
 use crate::ui::keyboard::render_keyboard;
 
-const HELP_ITEMS: &[&str] = &["[esc] back", "[^q] quit"];
+const HELP_ITEMS: &[&str] = &["[↑↓] navigate", "[enter] open", "[esc] back", "[^q] quit"];
 
 pub fn draw_settings_themes(frame: &mut Frame, app: &mut App) {
     let theme = app.theme().clone();
