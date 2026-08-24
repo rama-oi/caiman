@@ -59,5 +59,15 @@ fn handle_cli_flags() -> bool {
         return true;
     }
 
+    if args.iter().any(|a| a == "--help" || a == "-H" || a == "-h") {
+        println!(
+            "{} {}\n{}",
+            env!("CARGO_PKG_NAME"),
+            env!("CARGO_PKG_VERSION"),
+            env!("CARGO_PKG_DESCRIPTION")
+        );
+        return true;
+    }
+
     false
 }
