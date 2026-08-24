@@ -1,6 +1,6 @@
 # Caiman
 
-![Preview](./assets/0.png)
+![Preview](https://raw.githubusercontent.com/rama-oi/caiman/refs/heads/main/assets/0.png)
 
 Keyboard layout preview with theme support. TUI replacement of `xev`
 
