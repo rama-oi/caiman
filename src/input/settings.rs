@@ -1,6 +1,7 @@
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::app::App;
+use crate::input::command::handle_shortcut;
 use crate::router;
 use crate::ui::settings::{ITEM_ABOUT_CAIMAN, ITEM_COUNT, ITEM_SWITCH_THEME};
 
@@ -26,12 +27,9 @@ fn open_selected_item(app: &mut App) {
 
 pub fn handle_settings_input(app: &mut App, key: KeyEvent) {
     if key.modifiers.contains(KeyModifiers::CONTROL) {
-        match key.code {
-            KeyCode::Char('q') => {
-                app.should_quit = true;
-                return;
-            }
-            _ => {}
+        if let KeyCode::Char(c) = key.code {
+            handle_shortcut(app, c.to_ascii_lowercase());
+            return;
         }
     }
 

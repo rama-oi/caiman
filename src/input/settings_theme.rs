@@ -2,6 +2,7 @@ use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 use crate::app::App;
 use crate::config::save_theme;
+use crate::input::command::handle_shortcut;
 use crate::router;
 use crate::theme::slugify;
 
@@ -58,10 +59,11 @@ fn commit_theme(app: &mut App) {
 }
 
 pub fn handle_settings_themes_input(app: &mut App, key: KeyEvent) {
-    if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('q') {
-        app.theme_list_state.select(Some(app.selected_theme));
-        app.should_quit = true;
-        return;
+    if key.modifiers.contains(KeyModifiers::CONTROL) {
+        if let KeyCode::Char(c) = key.code {
+            handle_shortcut(app, c.to_ascii_lowercase());
+            return;
+        }
     }
 
     match key.code {
