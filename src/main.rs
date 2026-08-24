@@ -23,7 +23,7 @@ fn main() -> io::Result<()> {
     let mut terminal = ratatui::init();
 
     Command::new("swaymsg")
-        .args(["input", "type:keyboard", "xkb_layout", "guaraguao"])
+        .args(["input", "type:keyboard", "xkb_layout", "carey"])
         .status()?;
 
     let enhancement_enabled = supports_keyboard_enhancement().unwrap_or(false);
