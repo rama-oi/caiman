@@ -2,7 +2,7 @@
 
 ![Preview](https://raw.githubusercontent.com/rama-oi/caiman/refs/heads/main/assets/0.png)
 
-Keyboard layout preview with theme support. TUI replacement of `xev`
+A TUI keyboard layout inspector with live key event information and theme support.
 
 ```sh
 ┌─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬───────────┐

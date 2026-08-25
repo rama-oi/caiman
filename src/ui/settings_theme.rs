@@ -17,7 +17,7 @@ pub fn draw_settings_themes(frame: &mut Frame, app: &mut App) {
     let theme = app.theme().clone();
     let full_area = frame.area();
 
-    let modal_area = centered_rect(46, 10, full_area);
+    let modal_area = centered_rect(46, 14, full_area);
     let inner = render_modal(frame, modal_area, "themes", &theme);
 
     let theme_items: Vec<ListItem> = app
