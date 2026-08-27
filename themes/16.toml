@@ -1,0 +1,26 @@
+name = "TTY"
+author = "Pombo"
+version = 1
+
+[colors]
+background = "#000000"
+text = "#AAAAAA"
+
+border = "#555555"
+header = "#55FFFF"
+accent = "#55FFFF"
+
+warning = "#FFFF55"
+error = "#FF5555"
+success = "#55FF55"
+
+selection_fg = "#000000"
+selection_bg = "#55FFFF"
+
+claws = "#00AAAA"
+claws_light = "#55FFFF"
+claws_shadow = "#00AAAA"
+
+shell = "#AA0000"
+shell_light = "#FF5555"
+shell_shadow = "#AA0000"
