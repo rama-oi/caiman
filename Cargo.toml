@@ -1,8 +1,8 @@
 [package]
 name = "caiman"
-version = "2026.1.0"
+version = "2026.2.0"
 edition = "2024"
-description = "Keyboard layout switcher"
+description = "A TUI keyboard layout inspector with live key event information and theme support."
 authors = ["Pombo <https://github.com/pomboverso>"]
 license = "GPL-3.0-or-later"
 repository = "https://github.com/rama-oi/caiman"
